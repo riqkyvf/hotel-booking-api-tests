@@ -142,6 +142,11 @@ def available_room(base_url, admin_access_token):
     assert room["is_archived"] is False
     assert Decimal(room["price_per_night"]) == Decimal(BOOKING_ROOM_DATA["price_per_night"])
 
+    return {"hotel": hotel, "room": room}
+
+
+@pytest.fixture
+def stay_dates():
     check_in = datetime.now(timezone.utc).date() + timedelta(days=BOOKING_CHECK_IN_OFFSET_DAYS)
     check_out = check_in + timedelta(days=BOOKING_NIGHTS)
     stay = {
@@ -149,7 +154,7 @@ def available_room(base_url, admin_access_token):
         "check_out": check_out.isoformat(),
         "guests": BOOKING_GUESTS,
     }
-    return {"hotel": hotel, "room": room, "stay": stay}
+    return stay
 
 
 @pytest.fixture
@@ -165,8 +170,8 @@ def second_user(base_url, user_data):
 
 
 @pytest.fixture
-def pending_payment(base_url, available_room, registered_user, user_access_token):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+def pending_payment(base_url, available_room, stay_dates, registered_user, user_access_token):
+    payload = {"room_id": available_room["room"]["id"], **stay_dates}
     booked = create_booking(base_url, user_access_token, payload, uuid4().hex)
     assert booked.status_code == 201, booked.text
     booking = booked.json()
@@ -187,23 +192,9 @@ def pending_payment(base_url, available_room, registered_user, user_access_token
 
 
 @pytest.fixture(params=BLOCKING_BOOKING_STATUSES)
-def private_booking(base_url, available_room, registered_user, user_access_token, request):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
-    created = create_booking(base_url, user_access_token, payload, uuid4().hex)
-    assert created.status_code == 201, created.text
-    booking = created.json()
-    assert booking["status"] == "pending_payment"
-    assert booking["user_id"] == registered_user["user"]["id"]
-    for field, value in payload.items():
-        assert booking[field] == value
-
-    created_payment = create_payment(base_url, user_access_token, booking["id"])
-    assert created_payment.status_code == 201, created_payment.text
-    payment = created_payment.json()
-    assert payment["status"] == "pending"
-    assert payment["booking_id"] == booking["id"]
-    assert payment["amount"] == booking["total_price"]
-    assert payment["currency"] == booking["currency"]
+def private_booking(base_url, pending_payment, user_access_token, request):
+    booking = pending_payment["booking"]
+    payment = pending_payment["payment"]
 
     if request.param == "confirmed":
         succeeded = simulate_payment_success(base_url, user_access_token, payment["id"])
@@ -214,7 +205,7 @@ def private_booking(base_url, available_room, registered_user, user_access_token
     assert saved_booking.status_code == 200, saved_booking.text
     booking_body = saved_booking.json()
     assert booking_body["id"] == booking["id"]
-    assert booking_body["user_id"] == registered_user["user"]["id"]
+    assert booking_body["user_id"] == booking["user_id"]
     assert booking_body["status"] == request.param
 
     saved_payment = get_payment(base_url, user_access_token, payment["id"])

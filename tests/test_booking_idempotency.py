@@ -11,8 +11,8 @@ from schemas.error_response import ERROR_SCHEMA
 
 
 @pytest.fixture
-def idempotent_booking(base_url, available_room, user_access_token):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+def idempotent_booking(base_url, available_room, stay_dates, user_access_token):
+    payload = {"room_id": available_room["room"]["id"], **stay_dates}
     key = uuid4().hex
     response = create_booking(base_url, user_access_token, payload, key)
     assert response.status_code == 201, response.text
@@ -70,7 +70,7 @@ def test_same_key_with_different_body_is_rejected(base_url, idempotent_booking, 
 
 
 def test_replay_after_cancellation_does_not_create_new_booking(
-    base_url, available_room, idempotent_booking, user_access_token,
+    base_url, stay_dates, idempotent_booking, user_access_token,
 ):
     booking = idempotent_booking["booking"]
     cancelled_response = cancel_booking(base_url, user_access_token, booking["id"])
@@ -96,7 +96,7 @@ def test_replay_after_cancellation_does_not_create_new_booking(
     assert page["total"] == 1
     assert [item["id"] for item in page["items"]] == [booking["id"]]
 
-    availability = get_room_availability(base_url, booking["room_id"], available_room["stay"])
+    availability = get_room_availability(base_url, booking["room_id"], stay_dates)
     assert availability.status_code == 200, availability.text
     body = availability.json()
     assert body["room_id"] == booking["room_id"]

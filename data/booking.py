@@ -12,18 +12,22 @@ BOOKING_NIGHTS = 3
 BOOKING_GUESTS = 2
 BOOKING_CHECK_IN_OFFSET_DAYS = 2
 
-# Offsets in days from the first booking's check-in; its stay is three nights.
+# This scenario has its own dates, independent of the default booking stay.
+OVERLAP_NIGHTS = 3
+OVERLAP_CHECK_IN_OFFSET_DAYS = 2
+
+# Offsets in days from the first booking's check-in.
 OVERLAPPING_STAYS = (
-    pytest.param(0, 3, id="same_dates"),
+    pytest.param(0, OVERLAP_NIGHTS, id="same_dates"),
     pytest.param(-1, 1, id="overlap_left"),
-    pytest.param(2, 4, id="overlap_right"),
+    pytest.param(OVERLAP_NIGHTS - 1, OVERLAP_NIGHTS + 1, id="overlap_right"),
     pytest.param(1, 2, id="inside_existing"),
-    pytest.param(-1, 4, id="contains_existing"),
+    pytest.param(-1, OVERLAP_NIGHTS + 1, id="contains_existing"),
 )
 
 ADJACENT_STAYS = (
     pytest.param(-1, 0, id="ends_at_existing_check_in"),
-    pytest.param(3, 4, id="starts_at_existing_check_out"),
+    pytest.param(OVERLAP_NIGHTS, OVERLAP_NIGHTS + 1, id="starts_at_existing_check_out"),
 )
 
 BLOCKING_BOOKING_STATUSES = ("pending_payment", "confirmed")

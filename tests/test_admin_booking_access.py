@@ -40,7 +40,7 @@ def test_admin_can_read_another_users_booking_and_payment(
 
 
 def test_admin_can_cancel_another_users_booking(
-    base_url, available_room, private_booking, user_access_token, admin_access_token,
+    base_url, stay_dates, private_booking, user_access_token, admin_access_token,
 ):
     booking = private_booking["booking"]
     payment = private_booking["payment"]
@@ -66,7 +66,7 @@ def test_admin_can_cancel_another_users_booking(
     for field in ("id", "booking_id", "amount", "currency"):
         assert payment_body[field] == payment[field]
 
-    availability = get_room_availability(base_url, booking["room_id"], available_room["stay"])
+    availability = get_room_availability(base_url, booking["room_id"], stay_dates)
     assert availability.status_code == 200, availability.text
     body = availability.json()
     assert body["room_id"] == booking["room_id"]
@@ -75,9 +75,9 @@ def test_admin_can_cancel_another_users_booking(
 
 
 def test_admin_cannot_create_payment_for_another_users_booking(
-    base_url, available_room, registered_user, user_access_token, admin_access_token,
+    base_url, available_room, stay_dates, registered_user, user_access_token, admin_access_token,
 ):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+    payload = {"room_id": available_room["room"]["id"], **stay_dates}
     created = create_booking(base_url, user_access_token, payload, uuid4().hex)
     assert created.status_code == 201, created.text
     booking = created.json()

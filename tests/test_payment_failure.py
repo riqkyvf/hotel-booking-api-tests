@@ -13,7 +13,7 @@ from data.payments import PAYMENT_DECLINE_REASON, PAYMENT_FAILURE_CASES
 
 @pytest.mark.parametrize("payload,expected_reason", PAYMENT_FAILURE_CASES)
 def test_payment_failure_preserves_booking_and_room_hold(
-    base_url, available_room, pending_payment, user_access_token, payload, expected_reason,
+    base_url, stay_dates, pending_payment, user_access_token, payload, expected_reason,
 ):
     booking = pending_payment["booking"]
     payment = pending_payment["payment"]
@@ -41,7 +41,7 @@ def test_payment_failure_preserves_booking_and_room_hold(
     ):
         assert body[field] == booking[field]
 
-    availability = get_room_availability(base_url, booking["room_id"], available_room["stay"])
+    availability = get_room_availability(base_url, booking["room_id"], stay_dates)
     assert availability.status_code == 200, availability.text
     room = availability.json()
     assert room["room_id"] == booking["room_id"]

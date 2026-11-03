@@ -22,11 +22,11 @@ def database_url():
 
 @pytest.mark.db
 def test_expired_booking_cancels_payment_and_releases_room(
-    database_url, base_url, available_room, pending_payment, user_access_token, second_user,
+    database_url, base_url, stay_dates, pending_payment, user_access_token, second_user,
 ):
     booking = pending_payment["booking"]
     payment = pending_payment["payment"]
-    stay = available_room["stay"]
+    stay = stay_dates
     occupied = get_room_availability(base_url, booking["room_id"], stay)
     assert occupied.status_code == 200, occupied.text
     occupied_body = occupied.json()

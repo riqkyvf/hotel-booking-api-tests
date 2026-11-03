@@ -12,8 +12,8 @@ from schemas.error_response import ERROR_SCHEMA
 
 
 @pytest.fixture
-def booking_to_cancel(base_url, available_room, user_access_token, payment_status):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, payment_status):
+    payload = {"room_id": available_room["room"]["id"], **stay_dates}
     created = create_booking(base_url, user_access_token, payload, uuid4().hex)
     assert created.status_code == 201, created.text
     booking = created.json()
@@ -46,12 +46,12 @@ def booking_to_cancel(base_url, available_room, user_access_token, payment_statu
 
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
 def test_cancellation_releases_room_for_another_user(
-    base_url, available_room, booking_to_cancel, user_access_token, second_user,
+    base_url, stay_dates, booking_to_cancel, user_access_token, second_user,
     payment_status, expected_payment_status,
 ):
     booking = booking_to_cancel["booking"]
     room_id = booking["room_id"]
-    stay = available_room["stay"]
+    stay = stay_dates
 
     occupied = get_room_availability(base_url, room_id, stay)
     assert occupied.status_code == 200, occupied.text
@@ -114,7 +114,7 @@ def test_cancellation_releases_room_for_another_user(
 
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
 def test_repeated_cancellation_preserves_booking_and_payment(
-    base_url, available_room, booking_to_cancel, user_access_token,
+    base_url, stay_dates, booking_to_cancel, user_access_token,
     payment_status, expected_payment_status,
 ):
     booking = booking_to_cancel["booking"]
@@ -151,7 +151,7 @@ def test_repeated_cancellation_preserves_booking_and_payment(
         assert saved_payment.status_code == 200, saved_payment.text
         assert saved_payment.json() == cancelled_payment
 
-    availability = get_room_availability(base_url, booking["room_id"], available_room["stay"])
+    availability = get_room_availability(base_url, booking["room_id"], stay_dates)
     assert availability.status_code == 200, availability.text
     body = availability.json()
     assert body["room_id"] == booking["room_id"]
@@ -161,13 +161,13 @@ def test_repeated_cancellation_preserves_booking_and_payment(
 
 @pytest.mark.parametrize("booking_status", BLOCKING_BOOKING_STATUSES)
 def test_cancellation_on_check_in_day_is_rejected(
-    base_url, available_room, user_access_token, booking_status,
+    base_url, available_room, stay_dates, user_access_token, booking_status,
 ):
     check_in = datetime.now(timezone.utc).date()
     stay = {
         "check_in": check_in.isoformat(),
         "check_out": (check_in + timedelta(days=BOOKING_NIGHTS)).isoformat(),
-        "guests": available_room["stay"]["guests"],
+        "guests": stay_dates["guests"],
     }
     payload = {"room_id": available_room["room"]["id"], **stay}
     created = create_booking(base_url, user_access_token, payload, uuid4().hex)

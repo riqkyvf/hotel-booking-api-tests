@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -11,14 +11,27 @@ from data.booking import (
     ADJACENT_STAYS,
     BLOCKING_BOOKING_STATUSES,
     BOOKING_ROOM_DATA,
+    BOOKING_GUESTS,
+    OVERLAP_CHECK_IN_OFFSET_DAYS,
+    OVERLAP_NIGHTS,
     OVERLAPPING_STAYS,
 )
 from schemas.error_response import ERROR_SCHEMA
 
 
+@pytest.fixture
+def overlap_stay():
+    check_in = datetime.now(timezone.utc).date() + timedelta(days=OVERLAP_CHECK_IN_OFFSET_DAYS)
+    return {
+        "check_in": check_in.isoformat(),
+        "check_out": (check_in + timedelta(days=OVERLAP_NIGHTS)).isoformat(),
+        "guests": BOOKING_GUESTS,
+    }
+
+
 @pytest.fixture(params=BLOCKING_BOOKING_STATUSES)
-def blocking_booking(base_url, available_room, user_access_token, request):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+def blocking_booking(base_url, available_room, overlap_stay, user_access_token, request):
+    payload = {"room_id": available_room["room"]["id"], **overlap_stay}
     created = create_booking(base_url, user_access_token, payload, uuid4().hex)
     assert created.status_code == 201, created.text
     booking = created.json()
@@ -43,14 +56,14 @@ def blocking_booking(base_url, available_room, user_access_token, request):
 
 @pytest.mark.parametrize("start_offset,end_offset", OVERLAPPING_STAYS)
 def test_overlapping_booking_is_rejected(
-    base_url, available_room, blocking_booking, second_user, user_access_token,
+    base_url, available_room, overlap_stay, blocking_booking, second_user, user_access_token,
     start_offset, end_offset,
 ):
     check_in = date.fromisoformat(blocking_booking["check_in"])
     stay = {
         "check_in": (check_in + timedelta(days=start_offset)).isoformat(),
         "check_out": (check_in + timedelta(days=end_offset)).isoformat(),
-        "guests": available_room["stay"]["guests"],
+        "guests": overlap_stay["guests"],
     }
     room_id = available_room["room"]["id"]
     availability = get_room_availability(base_url, room_id, stay)
@@ -83,14 +96,14 @@ def test_overlapping_booking_is_rejected(
 
 @pytest.mark.parametrize("start_offset,end_offset", ADJACENT_STAYS)
 def test_adjacent_booking_is_allowed(
-    base_url, available_room, blocking_booking, second_user, user_access_token,
+    base_url, available_room, overlap_stay, blocking_booking, second_user, user_access_token,
     start_offset, end_offset,
 ):
     check_in = date.fromisoformat(blocking_booking["check_in"])
     stay = {
         "check_in": (check_in + timedelta(days=start_offset)).isoformat(),
         "check_out": (check_in + timedelta(days=end_offset)).isoformat(),
-        "guests": available_room["stay"]["guests"],
+        "guests": overlap_stay["guests"],
     }
     room_id = available_room["room"]["id"]
     availability = get_room_availability(base_url, room_id, stay)
@@ -119,7 +132,7 @@ def test_adjacent_booking_is_allowed(
 
 
 def test_booking_another_room_on_same_dates_is_allowed(
-    base_url, available_room, blocking_booking, second_user,
+    base_url, available_room, overlap_stay, blocking_booking, second_user,
     user_access_token, admin_access_token,
 ):
     created_room = create_room(
@@ -131,7 +144,7 @@ def test_booking_another_room_on_same_dates_is_allowed(
     assert room["id"] != blocking_booking["room_id"]
     assert room["hotel_id"] == available_room["hotel"]["id"]
 
-    stay = available_room["stay"]
+    stay = overlap_stay
     availability = get_room_availability(base_url, room["id"], stay)
     assert availability.status_code == 200, availability.text
     body = availability.json()

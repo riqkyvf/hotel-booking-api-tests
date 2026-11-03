@@ -11,13 +11,13 @@ from data.booking import INVALID_CHECK_OUT_OFFSETS, VALID_STAY_BOUNDARIES
 from schemas.error_response import ERROR_SCHEMA
 
 
-def test_booking_with_past_check_in_is_rejected(base_url, available_room, user_access_token):
+def test_booking_with_past_check_in_is_rejected(base_url, available_room, stay_dates, user_access_token):
     today = datetime.now(timezone.utc).date()
     payload = {
         "room_id": available_room["room"]["id"],
         "check_in": (today - timedelta(days=1)).isoformat(),
         "check_out": (today + timedelta(days=1)).isoformat(),
-        "guests": available_room["stay"]["guests"],
+        "guests": stay_dates["guests"],
     }
     response = create_booking(base_url, user_access_token, payload, uuid4().hex)
     assert response.status_code == 422, response.text
@@ -36,12 +36,12 @@ def test_booking_with_past_check_in_is_rejected(base_url, available_room, user_a
 
 @pytest.mark.parametrize("check_out_offset", INVALID_CHECK_OUT_OFFSETS)
 def test_booking_with_check_out_not_after_check_in_is_rejected(
-    base_url, available_room, user_access_token, check_out_offset,
+    base_url, available_room, stay_dates, user_access_token, check_out_offset,
 ):
-    check_in = date.fromisoformat(available_room["stay"]["check_in"])
+    check_in = date.fromisoformat(stay_dates["check_in"])
     payload = {
         "room_id": available_room["room"]["id"],
-        **available_room["stay"],
+        **stay_dates,
         "check_out": (check_in + timedelta(days=check_out_offset)).isoformat(),
     }
     response = create_booking(base_url, user_access_token, payload, uuid4().hex)
@@ -61,12 +61,12 @@ def test_booking_with_check_out_not_after_check_in_is_rejected(
 
 
 def test_booking_exceeding_room_capacity_is_rejected(
-    base_url, available_room, user_access_token,
+    base_url, available_room, stay_dates, user_access_token,
 ):
     room = available_room["room"]
     guests = room["capacity"] + 1
     assert guests <= 10
-    stay = {**available_room["stay"], "guests": guests}
+    stay = {**stay_dates, "guests": guests}
     availability = get_room_availability(base_url, room["id"], stay)
     assert availability.status_code == 200, availability.text
     unavailable = availability.json()
@@ -91,7 +91,7 @@ def test_booking_exceeding_room_capacity_is_rejected(
 
 
 def test_booking_disabled_room_is_rejected(
-    base_url, available_room, user_access_token, admin_access_token,
+    base_url, available_room, stay_dates, user_access_token, admin_access_token,
 ):
     room_id = available_room["room"]["id"]
     disabled = update_room_availability(
@@ -102,7 +102,7 @@ def test_booking_disabled_room_is_rejected(
     assert disabled_room["id"] == room_id
     assert disabled_room["is_available"] is False
 
-    stay = available_room["stay"]
+    stay = stay_dates
     availability = get_room_availability(base_url, room_id, stay)
     assert availability.status_code == 200, availability.text
     unavailable = availability.json()
@@ -129,13 +129,13 @@ def test_booking_disabled_room_is_rejected(
 
 
 def test_booking_archived_room_is_rejected(
-    base_url, available_room, user_access_token, admin_access_token,
+    base_url, available_room, stay_dates, user_access_token, admin_access_token,
 ):
     room_id = available_room["room"]["id"]
     archived = archive_room(base_url, admin_access_token, room_id)
     assert archived.status_code == 204, archived.text
 
-    stay = available_room["stay"]
+    stay = stay_dates
     availability = get_room_availability(base_url, room_id, stay)
     assert availability.status_code == 404, availability.text
     unavailable = availability.json()
@@ -159,14 +159,14 @@ def test_booking_archived_room_is_rejected(
 
 @pytest.mark.parametrize("check_in_offset,nights", VALID_STAY_BOUNDARIES)
 def test_booking_with_valid_stay_boundaries_is_allowed(
-    base_url, available_room, registered_user, user_access_token, check_in_offset, nights,
+    base_url, available_room, stay_dates, registered_user, user_access_token, check_in_offset, nights,
 ):
     room = available_room["room"]
     check_in = datetime.now(timezone.utc).date() + timedelta(days=check_in_offset)
     stay = {
         "check_in": check_in.isoformat(),
         "check_out": (check_in + timedelta(days=nights)).isoformat(),
-        "guests": available_room["stay"]["guests"],
+        "guests": stay_dates["guests"],
     }
     expected_total = Decimal(room["price_per_night"]) * nights
     availability = get_room_availability(base_url, room["id"], stay)
@@ -208,11 +208,11 @@ def test_booking_with_valid_stay_boundaries_is_allowed(
 
 
 def test_booking_longer_than_fourteen_nights_is_rejected(
-    base_url, available_room, user_access_token,
+    base_url, available_room, stay_dates, user_access_token,
 ):
-    check_in = date.fromisoformat(available_room["stay"]["check_in"])
+    check_in = date.fromisoformat(stay_dates["check_in"])
     stay = {
-        **available_room["stay"],
+        **stay_dates,
         "check_out": (check_in + timedelta(days=15)).isoformat(),
     }
     room_id = available_room["room"]["id"]

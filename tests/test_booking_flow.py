@@ -8,10 +8,10 @@ from api.rooms import get_room, get_room_availability, list_rooms
 from data.booking import BOOKING_NIGHTS, BOOKING_ROOM_DATA
 
 
-def test_user_can_select_available_room(base_url, available_room):
+def test_user_can_select_available_room(base_url, available_room, stay_dates):
     hotel = available_room["hotel"]
     room = available_room["room"]
-    stay = available_room["stay"]
+    stay = stay_dates
 
     room_list = list_rooms(base_url, hotel["id"])
 
@@ -50,9 +50,9 @@ def test_user_can_select_available_room(base_url, available_room):
 
 
 def test_user_can_create_and_read_booking(
-    base_url, available_room, registered_user, user_access_token
+    base_url, available_room, stay_dates, registered_user, user_access_token
 ):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+    payload = {"room_id": available_room["room"]["id"], **stay_dates}
 
     response = create_booking(base_url, user_access_token, payload, uuid4().hex)
 
@@ -91,8 +91,8 @@ def test_user_can_create_and_read_booking(
     assert booking_page["items"][0]["status"] == "pending_payment"
 
 
-def test_user_can_pay_for_booking(base_url, available_room, user_access_token):
-    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+def test_user_can_pay_for_booking(base_url, available_room, stay_dates, user_access_token):
+    payload = {"room_id": available_room["room"]["id"], **stay_dates}
     booked = create_booking(base_url, user_access_token, payload, uuid4().hex)
 
     assert booked.status_code == 201, booked.text
