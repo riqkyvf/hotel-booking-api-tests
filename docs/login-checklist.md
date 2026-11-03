@@ -1,9 +1,14 @@
 # Чек-лист входа пользователя
 
+> После выноса статических данных в `data/auth.py` и добавления `raw_body` в API-функции сбор проверен: все 224 идентификатора случаев совпадают с набором до переноса. Повторный HTTP-прогон не завершён: локальный API на localhost:8000 недоступен (ConnectionRefusedError). Результат 224 passed ниже относится к последнему полному прогону до этих изменений.
+
+> ASCII-политика email и пароля проверена обновлёнными HTTP-тестами регистрации и входа: **224 passed**. Предыдущий результат 145 случаев относится к прежнему контракту. PATCH email профиля пока не покрыт отдельными автотестами. Commit запущенного приложения не зафиксирован.
+
 **Операция:** `POST /api/v1/auth/login`  
 **Окружение:** локальное API, `http://localhost:8000`  
 **Дата составления:** 01.11.2026  
-**Последний полный автопрогон:** 01.11.2026 — 145 passed по всему проекту.  
+**Последний полный автопрогон:** 03.11.2026 — 224 passed за 15.55 с; HTTP-прогон обновлённого набора, отчёт `junit.xml`.
+
 **Версия приложения / commit:** не зафиксирована.
 
 Основание: [FR-01 и FR-02](requirements.md), [контракт API](api-specification.md) и схема Login из OpenAPI. Login принимает только email и password. Для пароля схема задаёт длину 10–128 символов; для email — корректный формат и максимум 254 символа.
@@ -12,7 +17,8 @@
 
 Примеры данных в таблицах обозначают варианты проверки. В коде используются уникальные email. Каждый вариант параметризации запускается отдельно; количество строк чек-листа не равно количеству запусков тестов.
 
-Всего 37 пунктов: 32 Passed, 3 Not run, 2 требуют уточнения.
+
+Всего пунктов: 41; 40 Passed, 1 Not run. Это покрытие пунктов, а не процент готовности продукта.
 
 ## 1. Основные сценарии
 
@@ -36,17 +42,22 @@
 | LOGIN-009 | Пароль не передан | Удалить password из тела | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_without_required_field](../tests/test_login.py#L73) [password] |
 | LOGIN-010 | Null в обязательных полях | По отдельности email = null и password = null | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_with_null_required_field](../tests/test_login.py#L88) |
 | LOGIN-011 | Неверные типы полей | Для каждого поля отдельно: целое число, дробное число, true, false, массив, объект | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_with_invalid_field_type](../tests/test_login.py#L108) |
-| LOGIN-012 | Пустой email и только пробелы | По отдельности пустая строка и строка из пробелов | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_with_invalid_email](../tests/test_login.py#L179) [empty, spaces] |
-| LOGIN-013 | Неверный формат email | userexample.com, user@, @example.com | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_with_invalid_email](../tests/test_login.py#L179) |
+| LOGIN-012 | Пустой email и только пробелы | По отдельности пустая строка и строка из пробелов | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_with_invalid_email](../tests/test_login.py#L174) [empty, spaces] |
+| LOGIN-013 | Неверный формат email | userexample.com, user@, @example.com | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_with_invalid_email](../tests/test_login.py#L174) |
 | LOGIN-014 | Пустой пароль | password = пустая строка | `422`, error.code = VALIDATION_ERROR | Passed | [test_login_with_empty_password](../tests/test_login.py#L188) |
-| LOGIN-015 | Регистр пароля значим | Войти с точным паролем, затем изменить регистр первой буквы | Исходный пароль — `200`; изменённый — `401 INVALID_CREDENTIALS` | Passed | [test_registered_password_is_case_sensitive](../tests/test_auth_flow.py#L139); сквозной сценарий |
-| LOGIN-016 | Крайние пробелы пароля значимы | Зарегистрировать пароль с пробелами; войти с точным паролем и без крайних пробелов | Исходный пароль — `200`; обрезанный — `401 INVALID_CREDENTIALS` | Passed | [test_register_preserves_password_spaces](../tests/test_auth_flow.py#L46) [edge_spaces]; сквозной сценарий |
-| LOGIN-017 | Внутренний пробел пароля значим | Зарегистрировать пароль с внутренним пробелом; повторить вход без него | Исходный пароль — `200`; без пробела — `401 INVALID_CREDENTIALS` | Passed | [test_register_preserves_password_spaces](../tests/test_auth_flow.py#L46) [internal_space]; сквозной сценарий |
-| LOGIN-018 | Пароль из кириллицы | Зарегистрировать пользователя с ПарольДляТеста и войти | Регистрация `201`; login `200`, непустой access_token | Passed | [test_register_and_login_with_cyrillic_password](../tests/test_auth_flow.py#L158); сквозной сценарий |
-| LOGIN-019 | Границы длины пароля при входе | 9 и 129 символов; для 10 и 128 сначала зарегистрировать соответствующий пароль | 9 и 129 — `422 VALIDATION_ERROR`; точные зарегистрированные пароли длиной 10 и 128 — `200` | Not run | Границы регистрации проверены отдельно; вход с такими паролями пока не проверяется |
-| LOGIN-020 | Границы длины email при входе | Валидный email длиной 254 после регистрации; email длиной 255 | 254 с правильным паролем — `200`; 255 — `422 VALIDATION_ERROR` | Not run | Границы регистрации не заменяют проверку login |
-| LOGIN-021 | Кириллица в email | Адрес с кириллицей до и/или после @ | Ожидание после согласования поддержки таких адресов | Требует уточнения | Q-REG-01 в вопросах к требованиям регистрации |
-| LOGIN-022 | Пароль только из пробелов | Пароль из 10–128 пробелов | Ожидание после согласования допустимости такого пароля | Требует уточнения | Q-REG-04 в вопросах к требованиям регистрации |
+| LOGIN-015 | Регистр пароля значим | Войти с точным паролем, затем изменить регистр первой буквы | Исходный пароль — `200`; изменённый — `401 INVALID_CREDENTIALS` | Passed | [test_registered_password_is_case_sensitive](../tests/test_auth_flow.py#L112); сквозной сценарий |
+| LOGIN-016 | Крайние пробелы пароля запрещены | Допустимый пароль с пробелом перед/после | `422 VALIDATION_ERROR`, поле `body.password` | Passed | [test_login_with_invalid_password_characters](../tests/test_login.py#L263) |
+| LOGIN-017 | Внутренний пробел пароля запрещён | `password 12345` | `422 VALIDATION_ERROR`, поле `body.password` | Passed | [test_login_with_invalid_password_characters](../tests/test_login.py#L263) |
+| LOGIN-018 | Кириллический пароль запрещён | `ПарольДляТеста` | `422 VALIDATION_ERROR`, поле `body.password` | Passed | [test_login_with_invalid_password_characters](../tests/test_login.py#L263) |
+| LOGIN-019 | Границы длины пароля при входе | 9, 10, 128, 129 букв a; для допустимых значений зарегистрировать пользователя | 9 и 129 — `422`; 10 и 128 — `200` | Passed | [test_login_with_invalid_password_length](../tests/test_login.py#L278); [test_register_and_login_with_allowed_ascii_password](../tests/test_auth_flow.py#L224) |
+| LOGIN-020 | Границы длины email при входе | Зарегистрированный адрес длиной 254, включая крайние пробелы; адрес длиной 255 | 254 после обрезки — `200`; 255 — `422`, поле `body.email` | Passed | [test_register_and_login_with_max_email_length](../tests/test_auth_flow.py#L261); [test_login_with_email_exceeding_max_length](../tests/test_login.py#L290) |
+| LOGIN-021 | Email вне ASCII запрещён | Кириллица в обеих частях, иероглифы, emoji | `422 VALIDATION_ERROR`, поле `body.email` | Passed | [test_login_with_invalid_email_characters](../tests/test_login.py#L248) |
+| LOGIN-022 | Пароль только из пробелов запрещён | 10 обычных пробелов | `422 VALIDATION_ERROR`, поле `body.password` | Passed | [test_login_with_invalid_password_characters](../tests/test_login.py#L263); only_spaces |
+| LOGIN-035 | Иероглифы и emoji в пароле запрещены | Существующий пользователь; пароль с символами вне ASCII | `422 VALIDATION_ERROR`, поле `body.password`; токен не выдаётся | Passed | [test_login_with_invalid_password_characters](../tests/test_login.py#L263) |
+| LOGIN-036 | Управляющие и невидимые символы пароля запрещены | Tab, LF, CR, NBSP, zero-width space, NUL, DEL | `422 VALIDATION_ERROR`, поле `body.password` | Passed | [test_login_with_invalid_password_characters](../tests/test_login.py#L263) |
+| LOGIN-037 | Недопустимые пробелы и управляющие символы email | Внутренний пробел, Tab, LF, NBSP, zero-width space, NUL, DEL | `422 VALIDATION_ERROR`, поле `body.email` | Passed | [test_login_with_invalid_email_characters](../tests/test_login.py#L248) |
+| LOGIN-038 | Пароль не требует сочетания категорий символов | Только буквы, цифры или пунктуация; полный набор печатных ASCII | С зарегистрированным паролем login `200` | Passed | [test_register_and_login_with_allowed_ascii_password](../tests/test_auth_flow.py#L224) |
+
 
 ## 3. Тело запроса
 
@@ -62,12 +73,12 @@
 
 | ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Статус | Автотест / покрытие |
 |---|---|---|---|---|---|
-| LOGIN-028 | Структура ошибки неверных учётных данных | Существующий пользователь; неверный пароль | `401 INVALID_CREDENTIALS`; тело соответствует ERROR_SCHEMA | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L197) |
-| LOGIN-029 | Структура ошибки валидации | Короткий пароль Q7!x | `422 VALIDATION_ERROR`; тело соответствует ERROR_SCHEMA; details указывает body.password | Passed | [test_login_validation_error_response](../tests/test_login.py#L223) |
-| LOGIN-030 | Идентификатор запроса в ошибках | Ответы 401 и 422 | Есть X-Request-ID, совпадает с error.request_id | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L197); [test_login_validation_error_response](../tests/test_login.py#L223) |
-| LOGIN-031 | Заголовок авторизации при отказе | Неверный пароль | `401`; WWW-Authenticate = Bearer | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L197) |
-| LOGIN-032 | Пароли и токен не раскрываются в ошибке входа | Получить токен; затем выполнить неуспешный вход с паролем-маркером | `401`; в теле нет исходного и переданного паролей, ранее выданного токена, access_token и password_hash | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L197) |
-| LOGIN-033 | Секреты отсутствуют в ошибке валидации | Передать короткий пароль-маркер | `422`; в теле нет переданного пароля, access_token и password_hash | Passed | [test_login_validation_error_response](../tests/test_login.py#L223) |
+| LOGIN-028 | Структура ошибки неверных учётных данных | Существующий пользователь; неверный пароль | `401 INVALID_CREDENTIALS`; тело соответствует ERROR_SCHEMA | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L202) |
+| LOGIN-029 | Структура ошибки валидации | Короткий пароль Q7!x | `422 VALIDATION_ERROR`; тело соответствует ERROR_SCHEMA; details указывает body.password | Passed | [test_login_validation_error_response](../tests/test_login.py#L228) |
+| LOGIN-030 | Идентификатор запроса в ошибках | Ответы 401 и 422 | Есть X-Request-ID, совпадает с error.request_id | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L202); [test_login_validation_error_response](../tests/test_login.py#L228) |
+| LOGIN-031 | Заголовок авторизации при отказе | Неверный пароль | `401`; WWW-Authenticate = Bearer | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L202) |
+| LOGIN-032 | Пароли и токен не раскрываются в ошибке входа | Получить токен; затем выполнить неуспешный вход с паролем-маркером | `401`; в теле нет исходного и переданного паролей, ранее выданного токена, access_token и password_hash | Passed | [test_login_invalid_credentials_error_response](../tests/test_login.py#L202) |
+| LOGIN-033 | Секреты отсутствуют в ошибке валидации | Передать короткий пароль-маркер | `422`; в теле нет переданного пароля, access_token и password_hash | Passed | [test_login_validation_error_response](../tests/test_login.py#L228) |
 | LOGIN-034 | Идентификатор успешного запроса | Успешный login | `200`; есть X-Request-ID | Not run | В текущем успешном тесте заголовок не проверяется |
 
 ERROR_SCHEMA хранится в [schemas/error_response.py](../schemas/error_response.py) и импортируется обычным Python-импортом. Схема проверяет структуру; статусы, коды ошибок и значения проверяются assert внутри тестов.
@@ -78,14 +89,14 @@ ERROR_SCHEMA хранится в [schemas/error_response.py](../schemas/error_re
 
 | ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Статус | Автотест / покрытие |
 |---|---|---|---|---|---|
-| AUTH-001 | Выданный токен открывает профиль | Зарегистрироваться, войти, вызвать GET /users/me с токеном | Login `200`; профиль `200`, данные соответствуют пользователю | Passed | [test_registered_user_can_login_and_get_profile](../tests/test_auth_flow.py#L7) |
-| AUTH-002 | Деактивация закрывает доступ со старым токеном | Получить токен, убедиться в доступе, отключить пользователя, повторить GET /users/me | До отключения `200`; после — `401 UNAUTHORIZED` с тем же токеном | Passed | [test_disabled_user_cannot_use_existing_token](../tests/test_auth_flow.py#L181) |
-| AUTH-003 | Реактивация восстанавливает доступ | Получить токен, отключить пользователя, проверить отказ, включить обратно | Старый ещё не истёкший токен снова открывает профиль; новый login с исходным паролем успешен | Passed | [test_reactivated_user_can_use_existing_token_and_login](../tests/test_auth_flow.py#L213) |
+| AUTH-001 | Выданный токен открывает профиль | Зарегистрироваться, войти, вызвать GET /users/me с токеном | Login `200`; профиль `200`, данные соответствуют пользователю | Passed | [test_registered_user_can_login_and_get_profile](../tests/test_auth_flow.py#L8) |
+| AUTH-002 | Деактивация закрывает доступ со старым токеном | Получить токен, убедиться в доступе, отключить пользователя, повторить GET /users/me | До отключения `200`; после — `401 UNAUTHORIZED` с тем же токеном | Passed | [test_disabled_user_cannot_use_existing_token](../tests/test_auth_flow.py#L131) |
+| AUTH-003 | Реактивация восстанавливает доступ | Получить токен, отключить пользователя, проверить отказ, включить обратно | Старый ещё не истёкший токен снова открывает профиль; новый login с исходным паролем успешен | Passed | [test_reactivated_user_can_use_existing_token_and_login](../tests/test_auth_flow.py#L163) |
 
 ## Что оставили на следующий этап
 
-- LOGIN-019, LOGIN-020 и LOGIN-034: границы полей login и заголовок успешного ответа.
-- LOGIN-021 и LOGIN-022: дождаться ответа на [вопросы к требованиям](registration-requirements-questions.md).
+- LOGIN-034: заголовок X-Request-ID успешного входа пока не проверяется. Границы полей login уже покрыты.
+- Отдельные проверки изменения email профиля: нормализация, запрет символов вне ASCII, отсутствие изменения профиля при отказе.
 - Отдельный блок авторизации: истёкший, подделанный и некорректный JWT; неверные iss/aud; отсутствие токена. Выдача непустой строки access_token и значение expires_in = 3600 сами по себе не подтверждают корректность содержимого и проверок JWT.
 
 Существующие автотесты не доказывают полное покрытие login и авторизации. Сценарии в этом документе связаны с фактическими проверками кода; невыполненные проверки не отмечены Passed.

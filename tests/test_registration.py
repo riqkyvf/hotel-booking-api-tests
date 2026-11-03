@@ -1,8 +1,8 @@
 import pytest
-import requests
 from jsonschema import validate
 
-from helpers.auth import register
+from api.auth import register
+from data.auth import INVALID_EMAIL_CHARACTER_CASES, INVALID_PASSWORD_CHARACTER_CASES
 from schemas.error_response import ERROR_SCHEMA
 
 
@@ -43,12 +43,14 @@ def test_register_with_phone(base_url, user_data):
 
 @pytest.mark.parametrize("email_variant", ["original", "uppercase", "spaces"])
 def test_register_with_existing_email(base_url, registered_user, email_variant):
-    if email_variant == "uppercase":
-        registered_user["email"] = registered_user["email"].upper()
-    elif email_variant == "spaces":
-        registered_user["email"] = f"  {registered_user['email']}  "
+    duplicate_data = registered_user["payload"].copy()
 
-    response = register(base_url, registered_user)
+    if email_variant == "uppercase":
+        duplicate_data["email"] = duplicate_data["email"].upper()
+    elif email_variant == "spaces":
+        duplicate_data["email"] = f"  {duplicate_data['email']}  "
+
+    response = register(base_url, duplicate_data)
 
     assert response.status_code == 409, response.text
     assert response.json()["error"]["code"] == "EMAIL_EXISTS"
@@ -80,6 +82,11 @@ def test_register_with_invalid_password_length(base_url, user_data, password_len
 
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
+    assert any(
+        detail["field"] == "body.password"
+        for detail in response.json()["error"]["details"]
+    )
+
 
 @pytest.mark.parametrize("password_length", [10, 128])
 def test_register_with_valid_password_length(base_url, user_data, password_length):
@@ -103,6 +110,11 @@ def test_register_with_invalid_name(base_url, user_data, name):
     assert response.status_code == 422, response.text
 
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    assert any(
+        detail["field"] == "body.name"
+        for detail in response.json()["error"]["details"]
+    )
 
 
 @pytest.mark.parametrize("name_length", [1, 100])
@@ -171,6 +183,11 @@ def test_register_with_invalid_email(base_url, user_data, email):
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
+    assert any(
+        detail["field"] == "body.email"
+        for detail in response.json()["error"]["details"]
+    )
+
 
 @pytest.mark.parametrize("field", ["email", "password", "name"])
 def test_register_with_null_required_field(base_url, user_data, field):
@@ -207,15 +224,16 @@ def test_register_with_invalid_field_type(base_url, user_data, field, invalid_va
     )
 
 
-def test_register_with_max_email_length(base_url, user_data, email_254):
-    user_data["email"] = email_254
+@pytest.mark.parametrize("padding", ["", "  "], ids=["exact", "with_outer_spaces"])
+def test_register_with_max_email_length(base_url, user_data, email_254, padding):
+    user_data["email"] = f"{padding}{email_254}{padding}"
 
-    assert len(user_data["email"]) == 254
+    assert len(email_254) == 254
 
     response = register(base_url, user_data)
 
     assert response.status_code == 201, response.text
-    assert response.json()["email"] == user_data["email"]
+    assert response.json()["email"] == email_254
 
 
 def test_register_with_email_exceeding_max_length(base_url, user_data, email_254):
@@ -227,6 +245,11 @@ def test_register_with_email_exceeding_max_length(base_url, user_data, email_254
 
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    assert any(
+        detail["field"] == "body.email"
+        for detail in response.json()["error"]["details"]
+    )
 
 
 @pytest.mark.parametrize("phone_length", [7, 15])
@@ -249,6 +272,11 @@ def test_register_with_invalid_phone_length(base_url, user_data, phone_length, p
 
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    assert any(
+        detail["field"] == "body.phone"
+        for detail in response.json()["error"]["details"]
+    )
 
 
 def test_register_with_null_phone(base_url, user_data):
@@ -295,6 +323,11 @@ def test_register_with_invalid_phone(base_url, user_data, phone):
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
+    assert any(
+        detail["field"] == "body.phone"
+        for detail in response.json()["error"]["details"]
+    )
+
 
 @pytest.mark.parametrize(
     "field, value",
@@ -329,12 +362,7 @@ def test_register_with_extra_field(base_url, user_data, field, value):
     ids=["no_body", "empty_object", "malformed_json"],
 )
 def test_register_with_invalid_body(base_url, body):
-    response = requests.post(
-        f"{base_url}/auth/register",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        timeout=10,
-    )
+    response = register(base_url, raw_body=body)
 
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
@@ -359,7 +387,7 @@ def test_register_validation_error_response(base_url, user_data):
 
 
 def test_register_duplicate_email_error_response(base_url, registered_user):
-    response = register(base_url, registered_user)
+    response = register(base_url, registered_user["payload"])
 
     assert response.status_code == 409, response.text
 
@@ -369,7 +397,7 @@ def test_register_duplicate_email_error_response(base_url, registered_user):
     assert body["error"]["code"] == "EMAIL_EXISTS"
     assert response.headers.get("X-Request-ID")
     assert body["error"]["request_id"] == response.headers["X-Request-ID"]
-    assert registered_user["password"] not in response.text
+    assert registered_user["payload"]["password"] not in response.text
     assert "password_hash" not in response.text
 
 
@@ -380,3 +408,31 @@ def test_register_with_cyrillic_name(base_url, user_data):
 
     assert response.status_code == 201, response.text
     assert response.json()["name"] == user_data["name"]
+
+
+@pytest.mark.parametrize("invalid_email_characters", INVALID_EMAIL_CHARACTER_CASES)
+def test_register_with_invalid_email_characters(
+    base_url, user_data, invalid_email_characters
+):
+    user_data["email"] = invalid_email_characters
+
+    response = register(base_url, user_data)
+
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert any(detail["field"] == "body.email" for detail in body["error"]["details"])
+
+
+@pytest.mark.parametrize("invalid_password_characters", INVALID_PASSWORD_CHARACTER_CASES)
+def test_register_with_invalid_password_characters(
+    base_url, user_data, invalid_password_characters
+):
+    user_data["password"] = invalid_password_characters
+
+    response = register(base_url, user_data)
+
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert any(detail["field"] == "body.password" for detail in body["error"]["details"])

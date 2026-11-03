@@ -1,15 +1,16 @@
 import pytest
 
-from helpers.auth import login, register
-from helpers.users import get_profile, update_user_as_admin
+from api.auth import login, register
+from api.users import get_profile, update_user_as_admin
+from data.auth import ASCII_EMAIL_DOMAINS, VALID_ASCII_PASSWORD_CASES
 
 
 def test_registered_user_can_login_and_get_profile(base_url, registered_user):
     login_response = login(
         base_url,
         {
-            "email": registered_user["email"],
-            "password": registered_user["password"],
+            "email": registered_user["payload"]["email"],
+            "password": registered_user["payload"]["password"],
         },
     )
 
@@ -26,8 +27,9 @@ def test_registered_user_can_login_and_get_profile(base_url, registered_user):
 
     user = profile_response.json()
 
-    assert user["email"] == registered_user["email"]
-    assert user["name"] == registered_user["name"]
+    assert user["id"] == registered_user["user"]["id"]
+    assert user["email"] == registered_user["payload"]["email"]
+    assert user["name"] == registered_user["payload"]["name"]
     assert user["phone"] is None
     assert user["role"] == "user"
     assert user["is_active"] is True
@@ -35,42 +37,8 @@ def test_registered_user_can_login_and_get_profile(base_url, registered_user):
     assert "password_hash" not in user
 
 
-@pytest.mark.parametrize(
-    "password, password_without_spaces",
-    [
-        ("  password12345  ", "password12345"),
-        ("password 12345", "password12345"),
-    ],
-    ids=["edge_spaces", "internal_space"],
-)
-def test_register_preserves_password_spaces(
-    base_url, user_data, password, password_without_spaces
-):
-    user_data["password"] = password
-
-    register_response = register(base_url, user_data)
-
-    assert register_response.status_code == 201, register_response.text
-
-    login_data = {
-        "email": user_data["email"],
-        "password": user_data["password"],
-    }
-
-    login_response = login(base_url, login_data)
-
-    assert login_response.status_code == 200, login_response.text
-
-    login_data["password"] = password_without_spaces
-
-    invalid_login_response = login(base_url, login_data)
-
-    assert invalid_login_response.status_code == 401, invalid_login_response.text
-    assert invalid_login_response.json()["error"]["code"] == "INVALID_CREDENTIALS"
-
-
 def test_duplicate_registration_does_not_change_user(base_url, registered_user):
-    duplicate_data = registered_user.copy()
+    duplicate_data = registered_user["payload"].copy()
     duplicate_data["name"] = "Changed Name"
     duplicate_data["password"] = "ChangedPassword123!"
 
@@ -82,8 +50,8 @@ def test_duplicate_registration_does_not_change_user(base_url, registered_user):
     login_response = login(
         base_url,
         {
-            "email": registered_user["email"],
-            "password": registered_user["password"],
+            "email": registered_user["payload"]["email"],
+            "password": registered_user["payload"]["password"],
         },
     )
 
@@ -94,13 +62,13 @@ def test_duplicate_registration_does_not_change_user(base_url, registered_user):
     profile_response = get_profile(base_url, access_token)
 
     assert profile_response.status_code == 200, profile_response.text
-    assert profile_response.json()["name"] == registered_user["name"]
-    assert profile_response.json()["email"] == registered_user["email"]
+    assert profile_response.json()["name"] == registered_user["payload"]["name"]
+    assert profile_response.json()["email"] == registered_user["payload"]["email"]
 
     new_password_response = login(
         base_url,
         {
-            "email": registered_user["email"],
+            "email": registered_user["payload"]["email"],
             "password": duplicate_data["password"],
         },
     )
@@ -117,6 +85,11 @@ def test_rejected_registration_does_not_reserve_email(base_url, user_data):
 
     assert rejected_response.status_code == 422, rejected_response.text
     assert rejected_response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    assert any(
+        detail["field"] == "body.name"
+        for detail in rejected_response.json()["error"]["details"]
+    )
 
     login_response = login(
         base_url,
@@ -138,44 +111,21 @@ def test_rejected_registration_does_not_reserve_email(base_url, user_data):
 
 def test_registered_password_is_case_sensitive(base_url, registered_user):
     login_data = {
-        "email": registered_user["email"],
-        "password": registered_user["password"],
+        "email": registered_user["payload"]["email"],
+        "password": registered_user["payload"]["password"],
     }
 
     login_response = login(base_url, login_data)
 
     assert login_response.status_code == 200, login_response.text
 
-    password = registered_user["password"]
+    password = registered_user["payload"]["password"]
     login_data["password"] = password[0].swapcase() + password[1:]
 
     invalid_login_response = login(base_url, login_data)
 
     assert invalid_login_response.status_code == 401, invalid_login_response.text
     assert invalid_login_response.json()["error"]["code"] == "INVALID_CREDENTIALS"
-
-
-def test_register_and_login_with_cyrillic_password(base_url, user_data):
-    user_data["password"] = "ПарольДляТеста"
-
-    register_response = register(base_url, user_data)
-
-    assert register_response.status_code == 201, register_response.text
-
-    login_response = login(
-        base_url,
-        {
-            "email": user_data["email"],
-            "password": user_data["password"],
-        },
-    )
-
-    assert login_response.status_code == 200, login_response.text
-
-    access_token = login_response.json()["access_token"]
-
-    assert isinstance(access_token, str)
-    assert access_token
 
 
 def test_disabled_user_cannot_use_existing_token(
@@ -189,7 +139,7 @@ def test_disabled_user_cannot_use_existing_token(
     profile_response = get_profile(base_url, access_token)
 
     assert profile_response.status_code == 200, profile_response.text
-    assert profile_response.json()["email"] == registered_user["email"]
+    assert profile_response.json()["email"] == registered_user["payload"]["email"]
     assert profile_response.json()["is_active"] is True
 
     user_id = profile_response.json()["id"]
@@ -224,7 +174,7 @@ def test_reactivated_user_can_use_existing_token_and_login(
 
     original_profile = profile_response.json()
 
-    assert original_profile["email"] == registered_user["email"]
+    assert original_profile["email"] == registered_user["payload"]["email"]
     assert original_profile["is_active"] is True
 
     user_id = original_profile["id"]
@@ -268,3 +218,58 @@ def test_reactivated_user_can_use_existing_token_and_login(
 
     assert isinstance(new_access_token, str)
     assert new_access_token
+
+
+@pytest.mark.parametrize("password", VALID_ASCII_PASSWORD_CASES)
+def test_register_and_login_with_allowed_ascii_password(base_url, user_data, password):
+    user_data["password"] = password
+
+    register_response = register(base_url, user_data)
+
+    assert register_response.status_code == 201, register_response.text
+
+    response = login(
+        base_url,
+        {"email": user_data["email"], "password": password},
+    )
+
+    assert response.status_code == 200, response.text
+    assert isinstance(response.json()["access_token"], str)
+    assert response.json()["access_token"]
+
+
+@pytest.mark.parametrize("domain", ASCII_EMAIL_DOMAINS)
+def test_register_and_login_with_ascii_email(base_url, user_data, domain):
+    local_part = user_data["email"].split("@")[0]
+    expected_email = f"{local_part}+tag@{domain}"
+    user_data["email"] = f"  {expected_email.upper()}  "
+
+    register_response = register(base_url, user_data)
+
+    assert register_response.status_code == 201, register_response.text
+    assert register_response.json()["email"] == expected_email
+
+    response = login(
+        base_url,
+        {"email": user_data["email"], "password": user_data["password"]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["access_token"]
+
+
+def test_register_and_login_with_max_email_length(base_url, user_data, email_254):
+    user_data["email"] = f"  {email_254}  "
+
+    register_response = register(base_url, user_data)
+
+    assert register_response.status_code == 201, register_response.text
+    assert register_response.json()["email"] == email_254
+
+    response = login(
+        base_url,
+        {"email": f"  {email_254.upper()}  ", "password": user_data["password"]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["access_token"]

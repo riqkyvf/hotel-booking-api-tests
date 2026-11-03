@@ -1,14 +1,23 @@
+import os
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from dotenv import load_dotenv
 
-from helpers.auth import login, register
-from helpers.users import update_user_as_admin
+from api.auth import login, register
+from api.users import update_user_as_admin
 
 
-@pytest.fixture
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
+
+
+@pytest.fixture(scope="session")
 def base_url():
-    return "http://localhost:8000/api/v1"
+    url = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1").strip().rstrip("/")
+    if not url:
+        pytest.fail("API_BASE_URL must not be empty", pytrace=False)
+    return url
 
 
 @pytest.fixture
@@ -41,24 +50,33 @@ def registered_user(base_url, user_data):
 
     assert response.status_code == 201, response.text
 
-    return user_data.copy()
+    return {"payload": user_data.copy(), "user": response.json()}
 
 
 @pytest.fixture
 def registered_login_data(registered_user):
     return {
-        "email": registered_user["email"],
-        "password": registered_user["password"],
+        "email": registered_user["payload"]["email"],
+        "password": registered_user["payload"]["password"],
     }
 
 
 @pytest.fixture
 def admin_access_token(base_url):
+    email = os.getenv("API_ADMIN_EMAIL")
+    password = os.getenv("API_ADMIN_PASSWORD")
+    if not email or not password:
+        pytest.fail(
+            "Set API_ADMIN_EMAIL and API_ADMIN_PASSWORD in the environment or .env "
+            "for administrative scenarios",
+            pytrace=False,
+        )
+
     response = login(
         base_url,
         {
-            "email": "admin@example.com",
-            "password": "HotelDemo123!",
+            "email": email,
+            "password": password,
         },
     )
 
@@ -68,12 +86,8 @@ def admin_access_token(base_url):
 
 
 @pytest.fixture
-def disabled_user(base_url, user_data, admin_access_token):
-    register_response = register(base_url, user_data)
-
-    assert register_response.status_code == 201, register_response.text
-
-    user_id = register_response.json()["id"]
+def disabled_user(base_url, registered_user, admin_access_token):
+    user_id = registered_user["user"]["id"]
 
     update_response = update_user_as_admin(
         base_url,
@@ -86,4 +100,4 @@ def disabled_user(base_url, user_data, admin_access_token):
     assert update_response.json()["id"] == user_id
     assert update_response.json()["is_active"] is False
 
-    return user_data
+    return registered_user["payload"].copy()

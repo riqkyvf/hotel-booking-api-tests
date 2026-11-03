@@ -1,8 +1,8 @@
 import pytest
-import requests
 from jsonschema import validate
 
-from helpers.auth import login
+from api.auth import login
+from data.auth import INVALID_EMAIL_CHARACTER_CASES, INVALID_PASSWORD_CHARACTER_CASES
 from schemas.error_response import ERROR_SCHEMA
 
 
@@ -160,12 +160,7 @@ def test_login_with_extra_field(base_url, login_data, field, value):
     ],
 )
 def test_login_with_invalid_body(base_url, body):
-    response = requests.post(
-        f"{base_url}/auth/login",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        timeout=10,
-    )
+    response = login(base_url, raw_body=body)
 
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
@@ -184,6 +179,11 @@ def test_login_with_invalid_email(base_url, login_data, email):
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
+    assert any(
+        detail["field"] == "body.email"
+        for detail in response.json()["error"]["details"]
+    )
+
 
 def test_login_with_empty_password(base_url, login_data):
     login_data["password"] = ""
@@ -192,6 +192,11 @@ def test_login_with_empty_password(base_url, login_data):
 
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    assert any(
+        detail["field"] == "body.password"
+        for detail in response.json()["error"]["details"]
+    )
 
 
 def test_login_invalid_credentials_error_response(base_url, registered_user, registered_login_data):
@@ -214,7 +219,7 @@ def test_login_invalid_credentials_error_response(base_url, registered_user, reg
     assert body["error"]["request_id"] == response.headers["X-Request-ID"]
     assert response.headers["WWW-Authenticate"] == "Bearer"
     assert registered_login_data["password"] not in response.text
-    assert registered_user["password"] not in response.text
+    assert registered_user["payload"]["password"] not in response.text
     assert access_token not in response.text
     assert "access_token" not in response.text
     assert "password_hash" not in response.text
@@ -237,3 +242,57 @@ def test_login_validation_error_response(base_url, login_data):
     assert login_data["password"] not in response.text
     assert "access_token" not in response.text
     assert "password_hash" not in response.text
+
+
+@pytest.mark.parametrize("invalid_email_characters", INVALID_EMAIL_CHARACTER_CASES)
+def test_login_with_invalid_email_characters(
+    base_url, login_data, invalid_email_characters
+):
+    login_data["email"] = invalid_email_characters
+
+    response = login(base_url, login_data)
+
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert any(detail["field"] == "body.email" for detail in body["error"]["details"])
+    assert "access_token" not in body
+
+
+@pytest.mark.parametrize("invalid_password_characters", INVALID_PASSWORD_CHARACTER_CASES)
+def test_login_with_invalid_password_characters(
+    base_url, registered_login_data, invalid_password_characters
+):
+    registered_login_data["password"] = invalid_password_characters
+
+    response = login(base_url, registered_login_data)
+
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert any(detail["field"] == "body.password" for detail in body["error"]["details"])
+    assert "access_token" not in body
+
+
+@pytest.mark.parametrize("password_length", [9, 129])
+def test_login_with_invalid_password_length(base_url, login_data, password_length):
+    login_data["password"] = "a" * password_length
+
+    response = login(base_url, login_data)
+
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert any(detail["field"] == "body.password" for detail in body["error"]["details"])
+
+
+@pytest.mark.parametrize("padding", ["", "  "], ids=["exact", "with_outer_spaces"])
+def test_login_with_email_exceeding_max_length(base_url, login_data, email_254, padding):
+    login_data["email"] = f"{padding}{email_254}c{padding}"
+
+    response = login(base_url, login_data)
+
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert any(detail["field"] == "body.email" for detail in body["error"]["details"])
