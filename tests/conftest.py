@@ -62,6 +62,15 @@ def registered_login_data(registered_user):
 
 
 @pytest.fixture
+def user_access_token(base_url, registered_login_data):
+    response = login(base_url, registered_login_data)
+
+    assert response.status_code == 200, response.text
+
+    return response.json()["access_token"]
+
+
+@pytest.fixture
 def admin_access_token(base_url):
     email = os.getenv("API_ADMIN_EMAIL")
     password = os.getenv("API_ADMIN_PASSWORD")
