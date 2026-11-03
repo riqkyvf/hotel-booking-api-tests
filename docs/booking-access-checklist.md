@@ -15,13 +15,13 @@
 
 BA-001/002/003/005/006 выполняются для двух состояний: pending_payment с pending-платежом и confirmed с succeeded-платежом — 10 случаев. BA-004 выполняется для pending_payment-брони без платежа, ещё один случай. Всего 11 случаев доступа. Новые BA-004/005/006 добавлены в чек-лист до реализации. В ответах отказа проверяются ERROR_SCHEMA, код и совпадение X-Request-ID с error.request_id. Два пользователя регистрируются независимо, ID ресурса реально существует и заранее проверен владельцем.
 
-Каждый случай создаёт собственные ресурсы через API и использует будущие даты UTC. SQL, ожидание истечения, динамический выбор API-методов и общие изменяемые ресурсы не используются. Права admin и отсутствие токена остаются отдельными сценариями. В BA-004 отсутствие созданного чужим пользователем pending-платежа дополнительно проверяется успешным созданием платежа владельцем; прямой подсчёт записей БД не выполняется. Приложение при выявлении дефектов не исправляется ради зелёного прогона.
+Каждый случай создаёт собственные ресурсы через API и использует будущие даты UTC. SQL, ожидание истечения, динамический выбор API-методов и общие изменяемые ресурсы не используются. Права admin описаны в [отдельном чек-листе](admin-booking-access-checklist.md); отсутствие токена остаётся отдельным этапом. В BA-004 отсутствие созданного чужим пользователем pending-платежа дополнительно проверяется успешным созданием платежа владельцем; прямой подсчёт записей БД не выполняется. Приложение при выявлении дефектов не исправляется ради зелёного прогона.
 
 Автотесты:
 
-- [test_user_cannot_read_another_users_booking](../tests/test_booking_access.py#L57)
-- [test_user_cannot_cancel_another_users_booking](../tests/test_booking_access.py#L82)
-- [test_user_cannot_read_another_users_payment](../tests/test_booking_access.py#L112)
-- [test_user_cannot_create_payment_for_another_users_booking](../tests/test_booking_access.py#L135)
-- [test_user_cannot_simulate_success_of_another_users_payment](../tests/test_booking_access.py#L174)
-- [test_user_cannot_simulate_failure_of_another_users_payment](../tests/test_booking_access.py#L197)
+- [test_user_cannot_read_another_users_booking](../tests/test_booking_access.py#L14)
+- [test_user_cannot_cancel_another_users_booking](../tests/test_booking_access.py#L39)
+- [test_user_cannot_read_another_users_payment](../tests/test_booking_access.py#L69)
+- [test_user_cannot_create_payment_for_another_users_booking](../tests/test_booking_access.py#L92)
+- [test_user_cannot_simulate_success_of_another_users_payment](../tests/test_booking_access.py#L131)
+- [test_user_cannot_simulate_failure_of_another_users_payment](../tests/test_booking_access.py#L154)

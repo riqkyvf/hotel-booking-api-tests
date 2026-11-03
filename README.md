@@ -16,7 +16,7 @@ data/                       Статические наборы тестовых
 schemas/                    JSON Schema ответов API
 api/                        Функции отправки API-запросов
 tests/
-    conftest.py             Настройки и общая подготовка пользователей и номера
+    conftest.py             Настройки и общая подготовка тестовых ресурсов
     test_registration.py    Проверки операции регистрации
     test_login.py           Проверки операции входа
     test_auth_flow.py       Регистрация, вход и получение профиля
@@ -27,6 +27,7 @@ tests/
     test_booking_overlap.py Пересечения дат и соседние бронирования
     test_booking_cancellation.py Отмена, её границы, повтор и освобождение дат
     test_booking_access.py  Защита чужих бронирований и платежей
+    test_admin_booking_access.py Права admin на чужие брони и платежи
     test_booking_restrictions.py Ограничения дат, вместимости и состояния номера
     test_payment_failure.py Отказ оплаты и новая успешная попытка
     test_booking_idempotency.py Повтор создания брони с тем же ключом
@@ -83,7 +84,7 @@ Copy-Item .env.example .env
 
 Последний полный HTTP-прогон от 03.11.2026: **476 passed за 169.98 с**. Проверены регистрация, вход, профиль, каталог, бронирование и платежи, включая новые ограничения доступа к чужим платежам. Отчёт `junit-full-payment-access.xml` исключён из Git. Результаты предыдущих этапов сохранены в соответствующих чек-листах.
 
-Затем добавлены 6 случаев ограничений создания брони и 5 случаев границ/повторной отмены. Ограничения, основной путь и пересечения проверены вместе — **25 passed за 24.63 с**, отчёт `junit-booking-restrictions.xml`. Отмена, идемпотентность бронирования и основной путь — **15 passed за 16.62 с**, отчёт `junit-cancellation-boundaries.xml`. Весь набор содержит 487 случаев и успешно собирается; полный HTTP-прогон после этих добавлений не повторялся.
+После полного прогона добавлены ограничения бронирования, границы проживания, повторная отмена и права администратора. Все девять модулей бронирования и платежей проверены вместе: **67 passed за 69.69 с**, отчёт `junit-admin-booking-access.xml`. Весь набор содержит 500 случаев и успешно собирается; полный HTTP-прогон после этих добавлений не повторялся. Результаты отдельных этапов указаны в чек-листах.
 
 ### Запуск в CI
 
@@ -135,6 +136,7 @@ is_active = true, отсутствие password и password_hash в ответе
 Чек-лист пересечения дат: [docs/booking-overlap-checklist.md](docs/booking-overlap-checklist.md).
 Чек-лист отмены брони: [docs/booking-cancellation-checklist.md](docs/booking-cancellation-checklist.md).
 Чек-лист доступа к чужим данным: [docs/booking-access-checklist.md](docs/booking-access-checklist.md).
+Чек-лист прав администратора: [docs/admin-booking-access-checklist.md](docs/admin-booking-access-checklist.md).
 Чек-лист неуспешной оплаты: [docs/payment-failure-checklist.md](docs/payment-failure-checklist.md).
 Чек-лист повторных запросов: [docs/repeated-requests-checklist.md](docs/repeated-requests-checklist.md).
 Чек-лист ограничений бронирования: [docs/booking-restrictions-checklist.md](docs/booking-restrictions-checklist.md).

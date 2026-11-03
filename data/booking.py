@@ -38,3 +38,9 @@ INVALID_CHECK_OUT_OFFSETS = (
     pytest.param(0, id="same_day"),
     pytest.param(-1, id="before_check_in"),
 )
+
+VALID_STAY_BOUNDARIES = (
+    pytest.param(0, BOOKING_NIGHTS, id="check_in_today"),
+    pytest.param(BOOKING_CHECK_IN_OFFSET_DAYS, 1, id="one_night"),
+    pytest.param(BOOKING_CHECK_IN_OFFSET_DAYS, 14, id="fourteen_nights"),
+)

@@ -8,12 +8,13 @@ import pytest
 from dotenv import load_dotenv
 
 from api.auth import login, register
-from api.bookings import create_booking
-from api.payments import create_payment
+from api.bookings import create_booking, get_booking
 from api.hotels import create_hotel
+from api.payments import create_payment, get_payment, simulate_payment_success
 from api.rooms import create_room
 from api.users import update_user_as_admin
 from data.booking import (
+    BLOCKING_BOOKING_STATUSES,
     BOOKING_CHECK_IN_OFFSET_DAYS, BOOKING_GUESTS, BOOKING_NIGHTS, BOOKING_ROOM_DATA,
 )
 from data.hotels import HOTEL_TEMPLATE
@@ -183,3 +184,44 @@ def pending_payment(base_url, available_room, registered_user, user_access_token
     assert payment["amount"] == booking["total_price"]
     assert payment["currency"] == booking["currency"]
     return {"booking": booking, "payment": payment}
+
+
+@pytest.fixture(params=BLOCKING_BOOKING_STATUSES)
+def private_booking(base_url, available_room, registered_user, user_access_token, request):
+    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+    created = create_booking(base_url, user_access_token, payload, uuid4().hex)
+    assert created.status_code == 201, created.text
+    booking = created.json()
+    assert booking["status"] == "pending_payment"
+    assert booking["user_id"] == registered_user["user"]["id"]
+    for field, value in payload.items():
+        assert booking[field] == value
+
+    created_payment = create_payment(base_url, user_access_token, booking["id"])
+    assert created_payment.status_code == 201, created_payment.text
+    payment = created_payment.json()
+    assert payment["status"] == "pending"
+    assert payment["booking_id"] == booking["id"]
+    assert payment["amount"] == booking["total_price"]
+    assert payment["currency"] == booking["currency"]
+
+    if request.param == "confirmed":
+        succeeded = simulate_payment_success(base_url, user_access_token, payment["id"])
+        assert succeeded.status_code == 200, succeeded.text
+        assert succeeded.json()["status"] == "succeeded"
+
+    saved_booking = get_booking(base_url, user_access_token, booking["id"])
+    assert saved_booking.status_code == 200, saved_booking.text
+    booking_body = saved_booking.json()
+    assert booking_body["id"] == booking["id"]
+    assert booking_body["user_id"] == registered_user["user"]["id"]
+    assert booking_body["status"] == request.param
+
+    saved_payment = get_payment(base_url, user_access_token, payment["id"])
+    assert saved_payment.status_code == 200, saved_payment.text
+    payment_body = saved_payment.json()
+    assert payment_body["id"] == payment["id"]
+    assert payment_body["booking_id"] == booking["id"]
+    expected_status = "succeeded" if request.param == "confirmed" else "pending"
+    assert payment_body["status"] == expected_status
+    return {"booking": booking_body, "payment": payment_body}
