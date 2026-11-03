@@ -9,6 +9,7 @@ from api.bookings import create_booking, get_booking, list_bookings
 from api.rooms import archive_room, get_room, get_room_availability, update_room_availability
 from data.booking import INVALID_CHECK_OUT_OFFSETS, VALID_STAY_BOUNDARIES
 from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 def test_booking_with_past_check_in_is_rejected(base_url, available_room, stay_dates, user_access_token):
@@ -20,12 +21,7 @@ def test_booking_with_past_check_in_is_rejected(base_url, available_room, stay_d
         "guests": stay_dates["guests"],
     }
     response = create_booking(base_url, user_access_token, payload, uuid4().hex)
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "PAST_CHECK_IN"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=422, code="PAST_CHECK_IN")
 
     bookings = list_bookings(base_url, user_access_token)
     assert bookings.status_code == 200, bookings.text
@@ -45,13 +41,8 @@ def test_booking_with_check_out_not_after_check_in_is_rejected(
         "check_out": (check_in + timedelta(days=check_out_offset)).isoformat(),
     }
     response = create_booking(base_url, user_access_token, payload, uuid4().hex)
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == "body" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
 
     bookings = list_bookings(base_url, user_access_token)
     assert bookings.status_code == 200, bookings.text
@@ -76,12 +67,7 @@ def test_booking_exceeding_room_capacity_is_rejected(
 
     payload = {"room_id": room["id"], **stay}
     response = create_booking(base_url, user_access_token, payload, uuid4().hex)
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "CAPACITY_EXCEEDED"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="CAPACITY_EXCEEDED")
 
     bookings = list_bookings(base_url, user_access_token)
     assert bookings.status_code == 200, bookings.text
@@ -111,12 +97,7 @@ def test_booking_disabled_room_is_rejected(
     assert unavailable["reason"] == "ROOM_DISABLED"
 
     response = create_booking(base_url, user_access_token, {"room_id": room_id, **stay}, uuid4().hex)
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "ROOM_DISABLED"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="ROOM_DISABLED")
 
     bookings = list_bookings(base_url, user_access_token)
     assert bookings.status_code == 200, bookings.text
@@ -143,12 +124,7 @@ def test_booking_archived_room_is_rejected(
     assert unavailable["error"]["code"] == "NOT_FOUND"
 
     response = create_booking(base_url, user_access_token, {"room_id": room_id, **stay}, uuid4().hex)
-    assert response.status_code == 404, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "NOT_FOUND"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=404, code="NOT_FOUND")
 
     bookings = list_bookings(base_url, user_access_token)
     assert bookings.status_code == 200, bookings.text
@@ -223,13 +199,8 @@ def test_booking_longer_than_fourteen_nights_is_rejected(
     assert invalid_stay["error"]["code"] == "VALIDATION_ERROR"
 
     response = create_booking(base_url, user_access_token, {"room_id": room_id, **stay}, uuid4().hex)
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == "body" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
 
     bookings = list_bookings(base_url, user_access_token)
     assert bookings.status_code == 200, bookings.text

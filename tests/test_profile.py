@@ -15,6 +15,7 @@ from data.profile import (
     VALID_PROFILE_FIELD_CHANGES,
 )
 from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 @pytest.fixture
@@ -193,12 +194,7 @@ def test_update_profile_rejects_existing_email(
         {"email": email, "name": "Must Not Be Saved", "phone": "+79991234567"},
     )
 
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "EMAIL_EXISTS"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="EMAIL_EXISTS")
 
     saved = get_profile(base_url, user_access_token)
     assert saved.status_code == 200, saved.text
@@ -377,13 +373,8 @@ def test_update_profile_validation_error_response(
         {"password": password_marker, "name": "Must Not Be Saved"},
     )
 
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == "body.password" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
     assert password_marker not in response.text
     assert user_access_token not in response.text
     assert "access_token" not in response.text

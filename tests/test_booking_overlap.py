@@ -2,7 +2,6 @@ from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
-from jsonschema import validate
 
 from api.bookings import create_booking, get_booking, list_bookings
 from api.payments import create_payment, simulate_payment_success
@@ -16,7 +15,7 @@ from data.booking import (
     OVERLAP_NIGHTS,
     OVERLAPPING_STAYS,
 )
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 @pytest.fixture
@@ -74,16 +73,11 @@ def test_overlapping_booking_is_rejected(
     assert body["reason"] == "ROOM_NOT_AVAILABLE"
 
     response = create_booking(
-        base_url, second_user["token"], {"room_id": room_id, **stay}, uuid4().hex
+        base_url, second_user["access_token"], {"room_id": room_id, **stay}, uuid4().hex
     )
-    assert response.status_code == 409, response.text
-    error = response.json()
-    validate(instance=error, schema=ERROR_SCHEMA)
-    assert error["error"]["code"] == "ROOM_NOT_AVAILABLE"
-    assert response.headers.get("X-Request-ID")
-    assert error["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="ROOM_NOT_AVAILABLE")
 
-    bookings = list_bookings(base_url, second_user["token"])
+    bookings = list_bookings(base_url, second_user["access_token"])
     assert bookings.status_code == 200, bookings.text
     page = bookings.json()
     assert page["total"] == 0
@@ -114,7 +108,7 @@ def test_adjacent_booking_is_allowed(
     assert body["reason"] is None
 
     payload = {"room_id": room_id, **stay}
-    response = create_booking(base_url, second_user["token"], payload, uuid4().hex)
+    response = create_booking(base_url, second_user["access_token"], payload, uuid4().hex)
     assert response.status_code == 201, response.text
     booking = response.json()
     assert booking["id"] != blocking_booking["id"]
@@ -123,7 +117,7 @@ def test_adjacent_booking_is_allowed(
     for field, value in payload.items():
         assert booking[field] == value
 
-    saved = get_booking(base_url, second_user["token"], booking["id"])
+    saved = get_booking(base_url, second_user["access_token"], booking["id"])
     assert saved.status_code == 200, saved.text
     assert saved.json() == booking
     original = get_booking(base_url, user_access_token, blocking_booking["id"])
@@ -153,7 +147,7 @@ def test_booking_another_room_on_same_dates_is_allowed(
     assert body["reason"] is None
 
     payload = {"room_id": room["id"], **stay}
-    response = create_booking(base_url, second_user["token"], payload, uuid4().hex)
+    response = create_booking(base_url, second_user["access_token"], payload, uuid4().hex)
     assert response.status_code == 201, response.text
     booking = response.json()
     assert booking["id"] != blocking_booking["id"]
@@ -162,7 +156,7 @@ def test_booking_another_room_on_same_dates_is_allowed(
     for field, value in payload.items():
         assert booking[field] == value
 
-    saved = get_booking(base_url, second_user["token"], booking["id"])
+    saved = get_booking(base_url, second_user["access_token"], booking["id"])
     assert saved.status_code == 200, saved.text
     assert saved.json() == booking
     original = get_booking(base_url, user_access_token, blocking_booking["id"])

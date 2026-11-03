@@ -1,4 +1,3 @@
-from jsonschema import validate
 
 from api.bookings import get_booking
 from api.payments import (
@@ -8,7 +7,7 @@ from api.payments import (
     simulate_payment_success,
 )
 from data.payments import PAYMENT_DECLINE_REASON
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 def test_second_pending_payment_is_rejected(base_url, pending_payment, user_access_token):
@@ -16,12 +15,7 @@ def test_second_pending_payment_is_rejected(base_url, pending_payment, user_acce
     payment = pending_payment["payment"]
 
     response = create_payment(base_url, user_access_token, booking["id"])
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "PAYMENT_ALREADY_PENDING"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="PAYMENT_ALREADY_PENDING")
 
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
     assert saved_payment.status_code == 200, saved_payment.text
@@ -45,12 +39,7 @@ def test_repeated_payment_success_is_rejected(base_url, pending_payment, user_ac
     assert confirmed["status"] == "confirmed"
 
     response = simulate_payment_success(base_url, user_access_token, payment["id"])
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "BOOKING_NOT_PAYABLE"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="BOOKING_NOT_PAYABLE")
 
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
     assert saved_payment.status_code == 200, saved_payment.text
@@ -75,12 +64,7 @@ def test_repeated_payment_failure_preserves_original_reason(
     assert failed["failure_reason"] == PAYMENT_DECLINE_REASON
 
     response = simulate_payment_failure(base_url, user_access_token, payment["id"], {})
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "PAYMENT_STATE_CONFLICT"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="PAYMENT_STATE_CONFLICT")
 
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
     assert saved_payment.status_code == 200, saved_payment.text

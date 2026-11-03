@@ -2,12 +2,11 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
-from jsonschema import validate
 
 from api.bookings import cancel_booking, create_booking, get_booking, list_bookings
 from api.payments import create_payment, get_payment, simulate_payment_success
 from api.rooms import get_room_availability
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 @pytest.fixture
@@ -52,12 +51,7 @@ def test_same_key_with_different_body_is_rejected(base_url, idempotent_booking, 
     changed = {**idempotent_booking["payload"], "guests": 1}
     assert changed != idempotent_booking["payload"]
     response = create_booking(base_url, user_access_token, changed, idempotent_booking["key"])
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "IDEMPOTENCY_KEY_REUSED"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="IDEMPOTENCY_KEY_REUSED")
 
     saved = get_booking(base_url, user_access_token, booking["id"])
     assert saved.status_code == 200, saved.text

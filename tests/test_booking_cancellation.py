@@ -2,21 +2,21 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
-from jsonschema import validate
 
 from api.bookings import cancel_booking, create_booking, get_booking
 from api.payments import create_payment, get_payment, simulate_payment_success
 from api.rooms import get_room_availability
 from data.booking import BLOCKING_BOOKING_STATUSES, BOOKING_NIGHTS, CANCELLATION_PAYMENT_CASES
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 @pytest.fixture
 def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, payment_status):
+    """Return current {booking, payment}; payment is None when no payment was requested."""
     payload = {"room_id": available_room["room"]["id"], **stay_dates}
-    created = create_booking(base_url, user_access_token, payload, uuid4().hex)
-    assert created.status_code == 201, created.text
-    booking = created.json()
+    booking_response = create_booking(base_url, user_access_token, payload, uuid4().hex)
+    assert booking_response.status_code == 201, booking_response.text
+    booking = booking_response.json()
     assert booking["status"] == "pending_payment"
 
     payment = None
@@ -34,14 +34,23 @@ def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, p
         assert succeeded.status_code == 200, succeeded.text
         assert succeeded.json()["status"] == "succeeded"
 
-    saved = get_booking(base_url, user_access_token, booking["id"])
-    assert saved.status_code == 200, saved.text
-    original = saved.json()
+    saved_booking = get_booking(base_url, user_access_token, booking["id"])
+    assert saved_booking.status_code == 200, saved_booking.text
+    current_booking = saved_booking.json()
     expected_status = "confirmed" if payment_status == "succeeded" else "pending_payment"
-    assert original["status"] == expected_status
+    assert current_booking["status"] == expected_status
     for field, value in payload.items():
-        assert original[field] == value
-    return {"booking": original, "payment": payment}
+        assert current_booking[field] == value
+    if payment is not None:
+        saved_payment = get_payment(base_url, user_access_token, payment["id"])
+        assert saved_payment.status_code == 200, saved_payment.text
+        current_payment = saved_payment.json()
+        assert current_payment["status"] == payment_status
+        for field in ("id", "booking_id", "amount", "currency"):
+            assert current_payment[field] == payment[field]
+        payment = current_payment
+
+    return {"booking": current_booking, "payment": payment}
 
 
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
@@ -53,27 +62,29 @@ def test_cancellation_releases_room_for_another_user(
     room_id = booking["room_id"]
     stay = stay_dates
 
-    occupied = get_room_availability(base_url, room_id, stay)
-    assert occupied.status_code == 200, occupied.text
-    occupied_body = occupied.json()
+    # The existing booking must hold the room before cancellation.
+    occupied_response = get_room_availability(base_url, room_id, stay)
+    assert occupied_response.status_code == 200, occupied_response.text
+    occupied_body = occupied_response.json()
     assert occupied_body["room_id"] == room_id
     assert occupied_body["available"] is False
     assert occupied_body["reason"] == "ROOM_NOT_AVAILABLE"
 
-    response = cancel_booking(base_url, user_access_token, booking["id"])
-    assert response.status_code == 200, response.text
-    cancelled = response.json()
-    assert cancelled["status"] == "cancelled"
-    assert response.headers.get("X-Request-ID")
+    # Cancellation must persist and update the associated payment.
+    cancel_response = cancel_booking(base_url, user_access_token, booking["id"])
+    assert cancel_response.status_code == 200, cancel_response.text
+    cancelled_booking = cancel_response.json()
+    assert cancelled_booking["status"] == "cancelled"
+    assert cancel_response.headers.get("X-Request-ID")
     for field in (
         "id", "user_id", "room_id", "check_in", "check_out", "guests",
         "price_per_night", "total_price", "currency",
     ):
-        assert cancelled[field] == booking[field]
+        assert cancelled_booking[field] == booking[field]
 
-    saved = get_booking(base_url, user_access_token, booking["id"])
-    assert saved.status_code == 200, saved.text
-    assert saved.json() == cancelled
+    saved_booking = get_booking(base_url, user_access_token, booking["id"])
+    assert saved_booking.status_code == 200, saved_booking.text
+    assert saved_booking.json() == cancelled_booking
 
     payment = booking_to_cancel["payment"]
     if payment is not None:
@@ -84,32 +95,34 @@ def test_cancellation_releases_room_for_another_user(
         for field in ("id", "booking_id", "amount", "currency"):
             assert payment_body[field] == payment[field]
 
+    # Released dates must be available for another user.
     availability = get_room_availability(base_url, room_id, stay)
     assert availability.status_code == 200, availability.text
-    body = availability.json()
-    assert body["room_id"] == room_id
-    assert body["available"] is True
-    assert body["reason"] is None
+    availability_body = availability.json()
+    assert availability_body["room_id"] == room_id
+    assert availability_body["available"] is True
+    assert availability_body["reason"] is None
     for field, value in stay.items():
-        assert body[field] == value
+        assert availability_body[field] == value
 
     payload = {"room_id": room_id, **stay}
-    created = create_booking(base_url, second_user["token"], payload, uuid4().hex)
-    assert created.status_code == 201, created.text
-    new_booking = created.json()
+    new_booking_response = create_booking(base_url, second_user["access_token"], payload, uuid4().hex)
+    assert new_booking_response.status_code == 201, new_booking_response.text
+    new_booking = new_booking_response.json()
     assert new_booking["id"] != booking["id"]
     assert new_booking["user_id"] == second_user["id"]
     assert new_booking["status"] == "pending_payment"
     for field, value in payload.items():
         assert new_booking[field] == value
 
-    saved_new = get_booking(base_url, second_user["token"], new_booking["id"])
-    assert saved_new.status_code == 200, saved_new.text
-    assert saved_new.json() == new_booking
+    saved_new_booking = get_booking(base_url, second_user["access_token"], new_booking["id"])
+    assert saved_new_booking.status_code == 200, saved_new_booking.text
+    assert saved_new_booking.json() == new_booking
 
-    original = get_booking(base_url, user_access_token, booking["id"])
-    assert original.status_code == 200, original.text
-    assert original.json() == cancelled
+    # A new booking must not change the cancelled booking.
+    original_booking_response = get_booking(base_url, user_access_token, booking["id"])
+    assert original_booking_response.status_code == 200, original_booking_response.text
+    assert original_booking_response.json() == cancelled_booking
 
 
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
@@ -119,33 +132,34 @@ def test_repeated_cancellation_preserves_booking_and_payment(
 ):
     booking = booking_to_cancel["booking"]
     payment = booking_to_cancel["payment"]
-    first = cancel_booking(base_url, user_access_token, booking["id"])
-    assert first.status_code == 200, first.text
-    cancelled = first.json()
-    assert cancelled["status"] == "cancelled"
+    first_cancel_response = cancel_booking(base_url, user_access_token, booking["id"])
+    assert first_cancel_response.status_code == 200, first_cancel_response.text
+    cancelled_booking = first_cancel_response.json()
+    assert cancelled_booking["status"] == "cancelled"
     for field in (
         "id", "user_id", "room_id", "check_in", "check_out", "guests",
         "price_per_night", "total_price", "currency",
     ):
-        assert cancelled[field] == booking[field]
+        assert cancelled_booking[field] == booking[field]
 
     cancelled_payment = None
     if payment is not None:
-        after_first = get_payment(base_url, user_access_token, payment["id"])
-        assert after_first.status_code == 200, after_first.text
-        cancelled_payment = after_first.json()
+        payment_after_first_cancel = get_payment(base_url, user_access_token, payment["id"])
+        assert payment_after_first_cancel.status_code == 200, payment_after_first_cancel.text
+        cancelled_payment = payment_after_first_cancel.json()
         assert cancelled_payment["status"] == expected_payment_status
         for field in ("id", "booking_id", "amount", "currency"):
             assert cancelled_payment[field] == payment[field]
 
-    response = cancel_booking(base_url, user_access_token, booking["id"])
-    assert response.status_code == 200, response.text
-    assert response.json() == cancelled
-    assert response.headers.get("X-Request-ID")
+    # Repeating cancellation must preserve both final snapshots.
+    repeated_cancel_response = cancel_booking(base_url, user_access_token, booking["id"])
+    assert repeated_cancel_response.status_code == 200, repeated_cancel_response.text
+    assert repeated_cancel_response.json() == cancelled_booking
+    assert repeated_cancel_response.headers.get("X-Request-ID")
 
-    saved = get_booking(base_url, user_access_token, booking["id"])
-    assert saved.status_code == 200, saved.text
-    assert saved.json() == cancelled
+    saved_booking = get_booking(base_url, user_access_token, booking["id"])
+    assert saved_booking.status_code == 200, saved_booking.text
+    assert saved_booking.json() == cancelled_booking
     if payment is not None:
         saved_payment = get_payment(base_url, user_access_token, payment["id"])
         assert saved_payment.status_code == 200, saved_payment.text
@@ -153,10 +167,10 @@ def test_repeated_cancellation_preserves_booking_and_payment(
 
     availability = get_room_availability(base_url, booking["room_id"], stay_dates)
     assert availability.status_code == 200, availability.text
-    body = availability.json()
-    assert body["room_id"] == booking["room_id"]
-    assert body["available"] is True
-    assert body["reason"] is None
+    availability_body = availability.json()
+    assert availability_body["room_id"] == booking["room_id"]
+    assert availability_body["available"] is True
+    assert availability_body["reason"] is None
 
 
 @pytest.mark.parametrize("booking_status", BLOCKING_BOOKING_STATUSES)
@@ -170,9 +184,9 @@ def test_cancellation_on_check_in_day_is_rejected(
         "guests": stay_dates["guests"],
     }
     payload = {"room_id": available_room["room"]["id"], **stay}
-    created = create_booking(base_url, user_access_token, payload, uuid4().hex)
-    assert created.status_code == 201, created.text
-    booking = created.json()
+    booking_response = create_booking(base_url, user_access_token, payload, uuid4().hex)
+    assert booking_response.status_code == 201, booking_response.text
+    booking = booking_response.json()
     assert booking["status"] == "pending_payment"
     for field, value in payload.items():
         assert booking[field] == value
@@ -189,6 +203,7 @@ def test_cancellation_on_check_in_day_is_rejected(
         assert succeeded.status_code == 200, succeeded.text
         assert succeeded.json()["status"] == "succeeded"
 
+    # Capture both resources before the rejected cancellation.
     before_booking = get_booking(base_url, user_access_token, booking["id"])
     assert before_booking.status_code == 200, before_booking.text
     original_booking = before_booking.json()
@@ -201,24 +216,19 @@ def test_cancellation_on_check_in_day_is_rejected(
     expected_status = "succeeded" if booking_status == "confirmed" else "pending"
     assert original_payment["status"] == expected_status
 
-    response = cancel_booking(base_url, user_access_token, booking["id"])
-    assert response.status_code == 409, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "CANCELLATION_CLOSED"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    cancel_response = cancel_booking(base_url, user_access_token, booking["id"])
+    assert_api_error(cancel_response, status=409, code="CANCELLATION_CLOSED")
 
-    saved = get_booking(base_url, user_access_token, booking["id"])
-    assert saved.status_code == 200, saved.text
-    assert saved.json() == original_booking
+    saved_booking = get_booking(base_url, user_access_token, booking["id"])
+    assert saved_booking.status_code == 200, saved_booking.text
+    assert saved_booking.json() == original_booking
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
     assert saved_payment.status_code == 200, saved_payment.text
     assert saved_payment.json() == original_payment
 
     availability = get_room_availability(base_url, booking["room_id"], stay)
     assert availability.status_code == 200, availability.text
-    unavailable = availability.json()
-    assert unavailable["room_id"] == booking["room_id"]
-    assert unavailable["available"] is False
-    assert unavailable["reason"] == "ROOM_NOT_AVAILABLE"
+    availability_body = availability.json()
+    assert availability_body["room_id"] == booking["room_id"]
+    assert availability_body["available"] is False
+    assert availability_body["reason"] == "ROOM_NOT_AVAILABLE"

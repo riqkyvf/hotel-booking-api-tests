@@ -1,21 +1,19 @@
 from uuid import uuid4
 
-from jsonschema import validate
-
 from api.bookings import cancel_booking, create_booking, get_booking, list_bookings
 from api.payments import (
     create_payment, get_payment, simulate_payment_failure, simulate_payment_success,
 )
 from api.rooms import get_room_availability
 from data.payments import PAYMENT_DECLINE_REASON
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 def test_admin_can_read_another_users_booking_and_payment(
-    base_url, private_booking, user_access_token, admin_access_token,
+    base_url, booking_with_payment, user_access_token, admin_access_token,
 ):
-    booking = private_booking["booking"]
-    payment = private_booking["payment"]
+    booking = booking_with_payment["booking"]
+    payment = booking_with_payment["payment"]
     response = get_booking(base_url, admin_access_token, booking["id"])
     assert response.status_code == 200, response.text
     assert response.json() == booking
@@ -40,10 +38,10 @@ def test_admin_can_read_another_users_booking_and_payment(
 
 
 def test_admin_can_cancel_another_users_booking(
-    base_url, stay_dates, private_booking, user_access_token, admin_access_token,
+    base_url, stay_dates, booking_with_payment, user_access_token, admin_access_token,
 ):
-    booking = private_booking["booking"]
-    payment = private_booking["payment"]
+    booking = booking_with_payment["booking"]
+    payment = booking_with_payment["payment"]
     response = cancel_booking(base_url, admin_access_token, booking["id"])
     assert response.status_code == 200, response.text
     cancelled = response.json()
@@ -87,12 +85,7 @@ def test_admin_cannot_create_payment_for_another_users_booking(
         assert booking[field] == value
 
     response = create_payment(base_url, admin_access_token, booking["id"])
-    assert response.status_code == 404, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "NOT_FOUND"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=404, code="NOT_FOUND")
 
     saved = get_booking(base_url, user_access_token, booking["id"])
     assert saved.status_code == 200, saved.text
@@ -111,17 +104,12 @@ def test_admin_cannot_create_payment_for_another_users_booking(
 
 
 def test_admin_cannot_simulate_success_of_another_users_payment(
-    base_url, private_booking, user_access_token, admin_access_token,
+    base_url, booking_with_payment, user_access_token, admin_access_token,
 ):
-    booking = private_booking["booking"]
-    payment = private_booking["payment"]
+    booking = booking_with_payment["booking"]
+    payment = booking_with_payment["payment"]
     response = simulate_payment_success(base_url, admin_access_token, payment["id"])
-    assert response.status_code == 404, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "NOT_FOUND"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=404, code="NOT_FOUND")
 
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
     assert saved_payment.status_code == 200, saved_payment.text
@@ -132,19 +120,14 @@ def test_admin_cannot_simulate_success_of_another_users_payment(
 
 
 def test_admin_cannot_simulate_failure_of_another_users_payment(
-    base_url, private_booking, user_access_token, admin_access_token,
+    base_url, booking_with_payment, user_access_token, admin_access_token,
 ):
-    booking = private_booking["booking"]
-    payment = private_booking["payment"]
+    booking = booking_with_payment["booking"]
+    payment = booking_with_payment["payment"]
     response = simulate_payment_failure(
         base_url, admin_access_token, payment["id"], {"reason": PAYMENT_DECLINE_REASON},
     )
-    assert response.status_code == 404, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "NOT_FOUND"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=404, code="NOT_FOUND")
 
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
     assert saved_payment.status_code == 200, saved_payment.text

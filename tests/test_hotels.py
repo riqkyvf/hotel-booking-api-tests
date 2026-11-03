@@ -18,7 +18,7 @@ from data.hotels import (
     INVALID_HOTEL_SORTS,
     INVALID_HOTEL_UUIDS,
 )
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 from schemas.hotel_response import HOTEL_PAGE_SCHEMA, HOTEL_SCHEMA
 
 
@@ -298,48 +298,28 @@ def test_hotels_archived_list_requires_admin(base_url, user_access_token, role):
     token = None if role == "guest" else user_access_token
     response = list_hotels(base_url, {"include_archived": True}, access_token=token)
 
-    assert response.status_code == 403, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "FORBIDDEN"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=403, code="FORBIDDEN")
 
 
 @pytest.mark.parametrize("field,value", INVALID_HOTEL_QUERY_CASES)
 def test_hotels_invalid_query_parameters(base_url, field, value):
     response = list_hotels(base_url, {field: value})
 
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == f"query.{field}" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
 
 
 def test_hotels_invalid_rating_range(base_url):
     response = list_hotels(base_url, {"min_rating": "4", "max_rating": "3"})
 
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "INVALID_FILTER_RANGE"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=422, code="INVALID_FILTER_RANGE")
 
 
 @pytest.mark.parametrize("sort", INVALID_HOTEL_SORTS)
 def test_hotels_invalid_sort(base_url, sort):
     response = list_hotels(base_url, {"sort": sort})
 
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "INVALID_SORT"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=422, code="INVALID_SORT")
 
 
 @pytest.mark.parametrize("role", HOTEL_READER_ROLES)
@@ -361,25 +341,15 @@ def test_get_hotel_for_each_role(
 def test_get_hotel_not_found(base_url):
     response = get_hotel(base_url, str(uuid4()))
 
-    assert response.status_code == 404, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "NOT_FOUND"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=404, code="NOT_FOUND")
 
 
 @pytest.mark.parametrize("hotel_id", INVALID_HOTEL_UUIDS)
 def test_get_hotel_invalid_uuid(base_url, hotel_id):
     response = get_hotel(base_url, hotel_id)
 
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == "path.hotel_id" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
 
 
 @pytest.mark.parametrize("role", ["guest", "user"])
@@ -387,12 +357,7 @@ def test_get_archived_hotel_hidden(base_url, archived_hotel, user_access_token, 
     token = None if role == "guest" else user_access_token
     response = get_hotel(base_url, archived_hotel["id"], access_token=token)
 
-    assert response.status_code == 404, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "NOT_FOUND"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=404, code="NOT_FOUND")
 
 
 def test_get_archived_hotel_as_admin(base_url, archived_hotel, admin_access_token):

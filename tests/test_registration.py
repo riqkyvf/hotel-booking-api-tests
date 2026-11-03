@@ -1,9 +1,8 @@
 import pytest
-from jsonschema import validate
 
 from api.auth import register
 from data.auth import INVALID_EMAIL_CHARACTER_CASES, INVALID_PASSWORD_CHARACTER_CASES
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 def test_register_without_phone(base_url, user_data):
@@ -383,15 +382,8 @@ def test_register_validation_error_response(base_url, user_data):
 
     response = register(base_url, user_data)
 
-    assert response.status_code == 422, response.text
-
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == "body.password" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
     assert user_data["password"] not in response.text
     assert "password_hash" not in response.text
 
@@ -399,14 +391,7 @@ def test_register_validation_error_response(base_url, user_data):
 def test_register_duplicate_email_error_response(base_url, registered_user):
     response = register(base_url, registered_user["payload"])
 
-    assert response.status_code == 409, response.text
-
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-
-    assert body["error"]["code"] == "EMAIL_EXISTS"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=409, code="EMAIL_EXISTS")
     assert registered_user["payload"]["password"] not in response.text
     assert "password_hash" not in response.text
 

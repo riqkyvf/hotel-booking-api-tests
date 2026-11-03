@@ -18,12 +18,15 @@ from data.hotel_prices import (
     ROOM_TEMPLATE,
 )
 from data.hotels import HOTEL_TEMPLATE
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 from schemas.hotel_response import HOTEL_PAGE_SCHEMA
 
 
 def create_priced_hotel(base_url, access_token, city, case):
     """Create one hotel with rooms and verify that setup succeeded."""
+    for _, state in case["rooms"]:
+        assert state in {"active", "disabled", "archived"}, f"Unknown room state: {state!r}"
+
     response = create_hotel(
         base_url,
         access_token,
@@ -213,24 +216,14 @@ def test_hotels_price_pagination(base_url, price_pagination_catalog, sort):
 def test_hotels_invalid_price_parameters(base_url, field, value):
     response = list_hotels(base_url, {field: value})
 
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == f"query.{field}" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
 
 
 def test_hotels_invalid_price_range(base_url):
     response = list_hotels(base_url, {"min_price": "9000", "max_price": "1000"})
 
-    assert response.status_code == 422, response.text
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-    assert body["error"]["code"] == "INVALID_FILTER_RANGE"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=422, code="INVALID_FILTER_RANGE")
 
 
 @pytest.mark.parametrize("sort", PRICE_SORT_DIRECTIONS)

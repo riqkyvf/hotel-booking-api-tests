@@ -1,9 +1,8 @@
 import pytest
-from jsonschema import validate
 
 from api.auth import login
 from data.auth import INVALID_EMAIL_CHARACTER_CASES, INVALID_PASSWORD_CHARACTER_CASES
-from schemas.error_response import ERROR_SCHEMA
+from tests.assertions import assert_api_error
 
 
 def test_login_with_valid_credentials(base_url, registered_login_data):
@@ -45,12 +44,12 @@ def test_login_with_invalid_password(base_url, registered_login_data):
     assert response.json()["error"]["code"] == "INVALID_CREDENTIALS"
 
 
-def test_login_with_disabled_user(base_url, disabled_user):
+def test_login_with_disabled_user(base_url, disabled_user_credentials):
     response = login(
         base_url,
         {
-            "email": disabled_user["email"],
-            "password": disabled_user["password"],
+            "email": disabled_user_credentials["email"],
+            "password": disabled_user_credentials["password"],
         },
     )
 
@@ -215,14 +214,7 @@ def test_login_invalid_credentials_error_response(base_url, registered_user, reg
 
     response = login(base_url, registered_login_data)
 
-    assert response.status_code == 401, response.text
-
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-
-    assert body["error"]["code"] == "INVALID_CREDENTIALS"
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert_api_error(response, status=401, code="INVALID_CREDENTIALS")
     assert response.headers["WWW-Authenticate"] == "Bearer"
     assert registered_login_data["password"] not in response.text
     assert registered_user["payload"]["password"] not in response.text
@@ -236,15 +228,8 @@ def test_login_validation_error_response(base_url, login_data):
 
     response = login(base_url, login_data)
 
-    assert response.status_code == 422, response.text
-
-    body = response.json()
-    validate(instance=body, schema=ERROR_SCHEMA)
-
-    assert body["error"]["code"] == "VALIDATION_ERROR"
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(detail["field"] == "body.password" for detail in body["error"]["details"])
-    assert response.headers.get("X-Request-ID")
-    assert body["error"]["request_id"] == response.headers["X-Request-ID"]
     assert login_data["password"] not in response.text
     assert "access_token" not in response.text
     assert "password_hash" not in response.text
