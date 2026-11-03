@@ -38,3 +38,20 @@ def update_user_as_admin(base_url, access_token, user_id, data):
         headers=authorization_headers(access_token),
         timeout=10,
     )
+
+
+def list_users_as_admin(base_url, access_token, params=None):
+    return requests.get(
+        f"{base_url}/admin/users",
+        params=params,
+        headers=authorization_headers(access_token),
+        timeout=10,
+    )
+
+
+def get_user_as_admin(base_url, access_token, user_id):
+    return requests.get(
+        f"{base_url}/admin/users/{user_id}",
+        headers=authorization_headers(access_token),
+        timeout=10,
+    )

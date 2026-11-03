@@ -17,7 +17,13 @@ def get_hotel(base_url, hotel_id, access_token=None):
     )
 
 
-def create_hotel(base_url, access_token, data):
+def create_hotel(base_url, access_token, data=None, *, raw_body=None):
+    if raw_body is not None:
+        return requests.post(
+            f"{base_url}/hotels", data=raw_body,
+            headers={**authorization_headers(access_token), "Content-Type": "application/json"},
+            timeout=10,
+        )
     return requests.post(
         f"{base_url}/hotels",
         json=data,
@@ -29,6 +35,21 @@ def create_hotel(base_url, access_token, data):
 def archive_hotel(base_url, access_token, hotel_id):
     return requests.delete(
         f"{base_url}/hotels/{hotel_id}",
+        headers=authorization_headers(access_token),
+        timeout=10,
+    )
+
+
+def update_hotel(base_url, access_token, hotel_id, data=None, *, raw_body=None):
+    if raw_body is not None:
+        return requests.put(
+            f"{base_url}/hotels/{hotel_id}", data=raw_body,
+            headers={**authorization_headers(access_token), "Content-Type": "application/json"},
+            timeout=10,
+        )
+    return requests.put(
+        f"{base_url}/hotels/{hotel_id}",
+        json=data,
         headers=authorization_headers(access_token),
         timeout=10,
     )

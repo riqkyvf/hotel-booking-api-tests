@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from uuid import uuid4
 
@@ -9,14 +8,6 @@ from api.payments import create_payment, get_payment, simulate_payment_success
 from api.rooms import get_room_availability
 from db import move_booking_expiry_to_past
 from tests.assertions import assert_api_error
-
-
-@pytest.fixture
-def database_url():
-    value = os.getenv("TEST_DATABASE_URL")
-    if not value or not value.strip():
-        pytest.fail("Set TEST_DATABASE_URL in the environment or .env for SQL preparation", pytrace=False)
-    return value
 
 
 @pytest.mark.db

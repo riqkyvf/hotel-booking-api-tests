@@ -223,3 +223,11 @@ def booking_with_payment(base_url, pending_payment, user_access_token, request):
     expected_status = "succeeded" if request.param == "confirmed" else "pending"
     assert payment_body["status"] == expected_status
     return {"booking": booking_body, "payment": payment_body}
+
+
+@pytest.fixture
+def database_url():
+    value = os.getenv("TEST_DATABASE_URL")
+    if not value or not value.strip():
+        pytest.fail("Set TEST_DATABASE_URL in the environment or .env for SQL preparation", pytrace=False)
+    return value

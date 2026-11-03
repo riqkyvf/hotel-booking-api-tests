@@ -24,8 +24,14 @@ def simulate_payment_success(base_url, access_token, payment_id):
     )
 
 
-def simulate_payment_failure(base_url, access_token, payment_id, data):
+def simulate_payment_failure(base_url, access_token, payment_id, data=None, *, raw_body=None):
     headers = authorization_headers(access_token)
+    if raw_body is not None:
+        headers["Content-Type"] = "application/json"
+        return requests.post(
+            f"{base_url}/payments/{payment_id}/simulate-failure",
+            data=raw_body, headers=headers, timeout=10,
+        )
     return requests.post(
         f"{base_url}/payments/{payment_id}/simulate-failure",
         json=data, headers=headers, timeout=10,
