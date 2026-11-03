@@ -62,8 +62,9 @@ def test_duplicate_registration_does_not_change_user(base_url, registered_user):
     profile_response = get_profile(base_url, access_token)
 
     assert profile_response.status_code == 200, profile_response.text
-    assert profile_response.json()["name"] == registered_user["payload"]["name"]
-    assert profile_response.json()["email"] == registered_user["payload"]["email"]
+    profile = profile_response.json()
+    assert profile["name"] == registered_user["payload"]["name"]
+    assert profile["email"] == registered_user["payload"]["email"]
 
     new_password_response = login(
         base_url,
@@ -84,11 +85,12 @@ def test_rejected_registration_does_not_reserve_email(base_url, user_data):
     rejected_response = register(base_url, invalid_data)
 
     assert rejected_response.status_code == 422, rejected_response.text
-    assert rejected_response.json()["error"]["code"] == "VALIDATION_ERROR"
+    error_body = rejected_response.json()
+    assert error_body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.name"
-        for detail in rejected_response.json()["error"]["details"]
+        for detail in error_body["error"]["details"]
     )
 
     login_response = login(
@@ -105,8 +107,9 @@ def test_rejected_registration_does_not_reserve_email(base_url, user_data):
     register_response = register(base_url, user_data)
 
     assert register_response.status_code == 201, register_response.text
-    assert register_response.json()["email"] == user_data["email"]
-    assert register_response.json()["name"] == user_data["name"]
+    created_user = register_response.json()
+    assert created_user["email"] == user_data["email"]
+    assert created_user["name"] == user_data["name"]
 
 
 def test_registered_password_is_case_sensitive(base_url, registered_user):
@@ -139,10 +142,11 @@ def test_disabled_user_cannot_use_existing_token(
     profile_response = get_profile(base_url, access_token)
 
     assert profile_response.status_code == 200, profile_response.text
-    assert profile_response.json()["email"] == registered_user["payload"]["email"]
-    assert profile_response.json()["is_active"] is True
+    profile = profile_response.json()
+    assert profile["email"] == registered_user["payload"]["email"]
+    assert profile["is_active"] is True
 
-    user_id = profile_response.json()["id"]
+    user_id = profile["id"]
     update_response = update_user_as_admin(
         base_url,
         admin_access_token,
@@ -151,8 +155,9 @@ def test_disabled_user_cannot_use_existing_token(
     )
 
     assert update_response.status_code == 200, update_response.text
-    assert update_response.json()["id"] == user_id
-    assert update_response.json()["is_active"] is False
+    updated_user = update_response.json()
+    assert updated_user["id"] == user_id
+    assert updated_user["is_active"] is False
 
     denied_response = get_profile(base_url, access_token)
 
@@ -183,8 +188,9 @@ def test_reactivated_user_can_use_existing_token_and_login(
     )
 
     assert disable_response.status_code == 200, disable_response.text
-    assert disable_response.json()["id"] == user_id
-    assert disable_response.json()["is_active"] is False
+    disabled_user = disable_response.json()
+    assert disabled_user["id"] == user_id
+    assert disabled_user["is_active"] is False
 
     denied_response = get_profile(base_url, access_token)
 
@@ -196,8 +202,9 @@ def test_reactivated_user_can_use_existing_token_and_login(
     )
 
     assert enable_response.status_code == 200, enable_response.text
-    assert enable_response.json()["id"] == user_id
-    assert enable_response.json()["is_active"] is True
+    enabled_user = enable_response.json()
+    assert enabled_user["id"] == user_id
+    assert enabled_user["is_active"] is True
 
     restored_profile_response = get_profile(base_url, access_token)
 
@@ -234,8 +241,9 @@ def test_register_and_login_with_allowed_ascii_password(base_url, user_data, pas
     )
 
     assert response.status_code == 200, response.text
-    assert isinstance(response.json()["access_token"], str)
-    assert response.json()["access_token"]
+    body = response.json()
+    assert isinstance(body["access_token"], str)
+    assert body["access_token"]
 
 
 @pytest.mark.parametrize("domain", ASCII_EMAIL_DOMAINS)

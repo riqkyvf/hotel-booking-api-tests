@@ -125,10 +125,11 @@ def test_hotels_pagination_pages(base_url, hotel_catalog):
             {"city": hotel_catalog["city"], "limit": 2, "offset": offset, "sort": "name"},
         )
         assert response.status_code == 200, response.text
-        assert response.json()["total"] == 4
-        assert response.json()["limit"] == 2
-        assert response.json()["offset"] == offset
-        pages.append([hotel["id"] for hotel in response.json()["items"]])
+        body = response.json()
+        assert body["total"] == 4
+        assert body["limit"] == 2
+        assert body["offset"] == offset
+        pages.append([hotel["id"] for hotel in body["items"]])
 
     hotels = hotel_catalog["hotels"]
     expected = sorted([hotels["alpha_one"]["id"], hotels["alpha_two"]["id"]])
@@ -178,8 +179,9 @@ def test_hotels_city_requires_full_match(base_url, hotel_catalog):
     response = list_hotels(base_url, {"city": hotel_catalog["city"][:-1]})
 
     assert response.status_code == 200, response.text
-    assert response.json()["items"] == []
-    assert response.json()["total"] == 0
+    body = response.json()
+    assert body["items"] == []
+    assert body["total"] == 0
 
 
 @pytest.mark.parametrize("params,low,high,minimum_total", HOTEL_UNSCOPED_RATING_CASES)
@@ -349,9 +351,10 @@ def test_get_hotel_for_each_role(
     response = get_hotel(base_url, expected["id"], access_token=token)
 
     assert response.status_code == 200, response.text
-    validate(instance=response.json(), schema=HOTEL_SCHEMA)
-    assert response.json() == expected
-    assert response.json()["is_archived"] is False
+    body = response.json()
+    validate(instance=body, schema=HOTEL_SCHEMA)
+    assert body == expected
+    assert body["is_archived"] is False
     assert response.headers.get("X-Request-ID")
 
 

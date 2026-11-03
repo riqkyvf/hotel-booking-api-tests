@@ -64,11 +64,12 @@ def test_register_without_required_field(base_url, user_data, missing_field):
 
     assert response.status_code == 422, response.text
 
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{missing_field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -80,11 +81,12 @@ def test_register_with_invalid_password_length(base_url, user_data, password_len
 
     assert response.status_code == 422, response.text
 
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.password"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -109,11 +111,12 @@ def test_register_with_invalid_name(base_url, user_data, name):
 
     assert response.status_code == 422, response.text
 
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.name"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -181,11 +184,12 @@ def test_register_with_invalid_email(base_url, user_data, email):
     response = register(base_url, user_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.email"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -196,11 +200,12 @@ def test_register_with_null_required_field(base_url, user_data, field):
     response = register(base_url, user_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -216,11 +221,12 @@ def test_register_with_invalid_field_type(base_url, user_data, field, invalid_va
     response = register(base_url, user_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -244,11 +250,12 @@ def test_register_with_email_exceeding_max_length(base_url, user_data, email_254
     response = register(base_url, user_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.email"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -271,11 +278,12 @@ def test_register_with_invalid_phone_length(base_url, user_data, phone_length, p
     response = register(base_url, user_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.phone"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -321,11 +329,12 @@ def test_register_with_invalid_phone(base_url, user_data, phone):
     response = register(base_url, user_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.phone"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -348,11 +357,12 @@ def test_register_with_extra_field(base_url, user_data, field, value):
     response = register(base_url, user_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 

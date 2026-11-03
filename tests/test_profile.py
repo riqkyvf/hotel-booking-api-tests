@@ -112,8 +112,9 @@ def test_update_profile_preserves_omitted_fields(base_url, user_access_token, pr
     assert response.status_code == 200, response.text
     updated = response.json()
     assert updated["name"] == "Only Name Changed"
+    setup_body = setup.json()
     for field in ("id", "email", "phone", "role", "is_active", "created_at"):
-        assert updated[field] == setup.json()[field]
+        assert updated[field] == setup_body[field]
 
     saved = get_profile(base_url, user_access_token)
     assert saved.status_code == 200, saved.text
@@ -128,13 +129,14 @@ def test_update_profile_can_clear_phone(base_url, user_access_token, profile_bef
     response = update_profile(base_url, user_access_token, {"phone": None})
 
     assert response.status_code == 200, response.text
-    assert response.json()["phone"] is None
+    body = response.json()
+    assert body["phone"] is None
     for field in ("id", "email", "name", "role", "is_active", "created_at"):
-        assert response.json()[field] == profile_before[field]
+        assert body[field] == profile_before[field]
 
     saved = get_profile(base_url, user_access_token)
     assert saved.status_code == 200, saved.text
-    assert saved.json() == response.json()
+    assert saved.json() == body
 
 
 @pytest.mark.parametrize("padding", ["", "  "], ids=["exact", "with_outer_spaces"])
@@ -146,12 +148,13 @@ def test_update_profile_with_max_email_length(
     )
 
     assert response.status_code == 200, response.text
-    assert response.json()["email"] == email_254
-    assert response.json()["id"] == profile_before["id"]
+    body = response.json()
+    assert body["email"] == email_254
+    assert body["id"] == profile_before["id"]
 
     saved = get_profile(base_url, user_access_token)
     assert saved.status_code == 200, saved.text
-    assert saved.json() == response.json()
+    assert saved.json() == body
 
 
 @pytest.mark.parametrize("variant", ["original", "uppercase", "spaces", "both"])
@@ -165,12 +168,13 @@ def test_update_profile_with_own_email(base_url, user_access_token, profile_befo
     response = update_profile(base_url, user_access_token, {"email": email})
 
     assert response.status_code == 200, response.text
+    body = response.json()
     for field in ("id", "email", "name", "phone", "role", "is_active", "created_at"):
-        assert response.json()[field] == profile_before[field]
+        assert body[field] == profile_before[field]
 
     saved = get_profile(base_url, user_access_token)
     assert saved.status_code == 200, saved.text
-    assert saved.json() == response.json()
+    assert saved.json() == body
 
 
 @pytest.mark.parametrize("variant", ["original", "uppercase", "spaces", "both"])
@@ -278,8 +282,9 @@ def test_update_profile_rejects_invalid_body(
     response = update_profile(base_url, user_access_token, raw_body=body)
 
     assert response.status_code == 422, response.text
-    validate(instance=response.json(), schema=ERROR_SCHEMA)
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    response_body = response.json()
+    validate(instance=response_body, schema=ERROR_SCHEMA)
+    assert response_body["error"]["code"] == "VALIDATION_ERROR"
 
     saved = get_profile(base_url, user_access_token)
     assert saved.status_code == 200, saved.text
@@ -344,8 +349,9 @@ def test_update_profile_changes_only_current_user(
     response = update_profile(base_url, user_access_token, {"name": "Only Current User"})
 
     assert response.status_code == 200, response.text
-    assert response.json()["id"] == profile_before["id"]
-    assert response.json()["name"] == "Only Current User"
+    body = response.json()
+    assert body["id"] == profile_before["id"]
+    assert body["name"] == "Only Current User"
 
     other_login = login(
         base_url,

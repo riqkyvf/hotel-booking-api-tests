@@ -76,11 +76,12 @@ def test_login_without_required_field(base_url, login_data, missing_field):
     response = login(base_url, login_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{missing_field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -91,11 +92,12 @@ def test_login_with_null_required_field(base_url, login_data, field):
     response = login(base_url, login_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -111,11 +113,12 @@ def test_login_with_invalid_field_type(base_url, login_data, field, invalid_valu
     response = login(base_url, login_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -137,11 +140,12 @@ def test_login_with_extra_field(base_url, login_data, field, value):
     response = login(base_url, login_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == f"body.{field}"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -177,11 +181,12 @@ def test_login_with_invalid_email(base_url, login_data, email):
     response = login(base_url, login_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.email"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 
@@ -191,11 +196,12 @@ def test_login_with_empty_password(base_url, login_data):
     response = login(base_url, login_data)
 
     assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
 
     assert any(
         detail["field"] == "body.password"
-        for detail in response.json()["error"]["details"]
+        for detail in body["error"]["details"]
     )
 
 

@@ -1,4 +1,6 @@
 import os
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
@@ -6,7 +8,15 @@ import pytest
 from dotenv import load_dotenv
 
 from api.auth import login, register
+from api.bookings import create_booking
+from api.payments import create_payment
+from api.hotels import create_hotel
+from api.rooms import create_room
 from api.users import update_user_as_admin
+from data.booking import (
+    BOOKING_CHECK_IN_OFFSET_DAYS, BOOKING_GUESTS, BOOKING_NIGHTS, BOOKING_ROOM_DATA,
+)
+from data.hotels import HOTEL_TEMPLATE
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
@@ -106,7 +116,70 @@ def disabled_user(base_url, registered_user, admin_access_token):
     )
 
     assert update_response.status_code == 200, update_response.text
-    assert update_response.json()["id"] == user_id
-    assert update_response.json()["is_active"] is False
+    updated_user = update_response.json()
+    assert updated_user["id"] == user_id
+    assert updated_user["is_active"] is False
 
     return registered_user["payload"].copy()
+
+
+@pytest.fixture
+def available_room(base_url, admin_access_token):
+    hotel_response = create_hotel(
+        base_url,
+        admin_access_token,
+        {**HOTEL_TEMPLATE, "city": f"Booking_{uuid4().hex}"},
+    )
+    assert hotel_response.status_code == 201, hotel_response.text
+    hotel = hotel_response.json()
+
+    room_response = create_room(base_url, admin_access_token, hotel["id"], BOOKING_ROOM_DATA)
+    assert room_response.status_code == 201, room_response.text
+    room = room_response.json()
+    assert room["hotel_id"] == hotel["id"]
+    assert room["is_available"] is True
+    assert room["is_archived"] is False
+    assert Decimal(room["price_per_night"]) == Decimal(BOOKING_ROOM_DATA["price_per_night"])
+
+    check_in = datetime.now(timezone.utc).date() + timedelta(days=BOOKING_CHECK_IN_OFFSET_DAYS)
+    check_out = check_in + timedelta(days=BOOKING_NIGHTS)
+    stay = {
+        "check_in": check_in.isoformat(),
+        "check_out": check_out.isoformat(),
+        "guests": BOOKING_GUESTS,
+    }
+    return {"hotel": hotel, "room": room, "stay": stay}
+
+
+@pytest.fixture
+def second_user(base_url, user_data):
+    payload = {**user_data, "email": f"second_{uuid4().hex}@example.com"}
+    registered = register(base_url, payload)
+    assert registered.status_code == 201, registered.text
+    user = registered.json()
+
+    logged_in = login(base_url, {"email": payload["email"], "password": payload["password"]})
+    assert logged_in.status_code == 200, logged_in.text
+    return {"id": user["id"], "token": logged_in.json()["access_token"]}
+
+
+@pytest.fixture
+def pending_payment(base_url, available_room, registered_user, user_access_token):
+    payload = {"room_id": available_room["room"]["id"], **available_room["stay"]}
+    booked = create_booking(base_url, user_access_token, payload, uuid4().hex)
+    assert booked.status_code == 201, booked.text
+    booking = booked.json()
+    assert booking["status"] == "pending_payment"
+    assert booking["user_id"] == registered_user["user"]["id"]
+    for field, value in payload.items():
+        assert booking[field] == value
+
+    created = create_payment(base_url, user_access_token, booking["id"])
+    assert created.status_code == 201, created.text
+    payment = created.json()
+    assert payment["booking_id"] == booking["id"]
+    assert payment["status"] == "pending"
+    assert payment["failure_reason"] is None
+    assert payment["amount"] == booking["total_price"]
+    assert payment["currency"] == booking["currency"]
+    return {"booking": booking, "payment": payment}

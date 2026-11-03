@@ -1,48 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-import pytest
-
 from api.bookings import create_booking, get_booking, list_bookings
-from api.hotels import create_hotel
 from api.payments import create_payment, get_payment, simulate_payment_success
-from api.rooms import create_room, get_room, get_room_availability, list_rooms
-from data.booking import (
-    BOOKING_CHECK_IN_OFFSET_DAYS,
-    BOOKING_GUESTS,
-    BOOKING_NIGHTS,
-    BOOKING_ROOM_DATA,
-)
-from data.hotels import HOTEL_TEMPLATE
-
-
-@pytest.fixture
-def available_room(base_url, admin_access_token):
-    hotel_response = create_hotel(
-        base_url,
-        admin_access_token,
-        {**HOTEL_TEMPLATE, "city": f"Booking_{uuid4().hex}"},
-    )
-    assert hotel_response.status_code == 201, hotel_response.text
-    hotel = hotel_response.json()
-
-    room_response = create_room(base_url, admin_access_token, hotel["id"], BOOKING_ROOM_DATA)
-    assert room_response.status_code == 201, room_response.text
-    room = room_response.json()
-    assert room["hotel_id"] == hotel["id"]
-    assert room["is_available"] is True
-    assert room["is_archived"] is False
-    assert Decimal(room["price_per_night"]) == Decimal(BOOKING_ROOM_DATA["price_per_night"])
-
-    check_in = datetime.now(timezone.utc).date() + timedelta(days=BOOKING_CHECK_IN_OFFSET_DAYS)
-    check_out = check_in + timedelta(days=BOOKING_NIGHTS)
-    stay = {
-        "check_in": check_in.isoformat(),
-        "check_out": check_out.isoformat(),
-        "guests": BOOKING_GUESTS,
-    }
-    return {"hotel": hotel, "room": room, "stay": stay}
+from api.rooms import get_room, get_room_availability, list_rooms
+from data.booking import BOOKING_NIGHTS, BOOKING_ROOM_DATA
 
 
 def test_user_can_select_available_room(base_url, available_room):
@@ -53,8 +16,9 @@ def test_user_can_select_available_room(base_url, available_room):
     room_list = list_rooms(base_url, hotel["id"])
 
     assert room_list.status_code == 200, room_list.text
-    assert room_list.json()["total"] == 1
-    assert [item["id"] for item in room_list.json()["items"]] == [room["id"]]
+    room_page = room_list.json()
+    assert room_page["total"] == 1
+    assert [item["id"] for item in room_page["items"]] == [room["id"]]
 
     details = get_room(base_url, room["id"])
 
@@ -111,18 +75,20 @@ def test_user_can_create_and_read_booking(
     saved = get_booking(base_url, user_access_token, booking["id"])
 
     assert saved.status_code == 200, saved.text
+    saved_booking = saved.json()
     for field in (
         "id", "user_id", "room_id", "check_in", "check_out", "guests",
         "status", "price_per_night", "total_price", "currency", "expires_at",
     ):
-        assert saved.json()[field] == booking[field]
+        assert saved_booking[field] == booking[field]
 
     bookings = list_bookings(base_url, user_access_token)
 
     assert bookings.status_code == 200, bookings.text
-    assert bookings.json()["total"] == 1
-    assert [item["id"] for item in bookings.json()["items"]] == [booking["id"]]
-    assert bookings.json()["items"][0]["status"] == "pending_payment"
+    booking_page = bookings.json()
+    assert booking_page["total"] == 1
+    assert [item["id"] for item in booking_page["items"]] == [booking["id"]]
+    assert booking_page["items"][0]["status"] == "pending_payment"
 
 
 def test_user_can_pay_for_booking(base_url, available_room, user_access_token):
@@ -149,27 +115,31 @@ def test_user_can_pay_for_booking(base_url, available_room, user_access_token):
 
     pending = get_payment(base_url, user_access_token, payment["id"])
     assert pending.status_code == 200, pending.text
+    pending_payment = pending.json()
     for field in ("id", "booking_id", "status", "amount", "currency", "failure_reason"):
-        assert pending.json()[field] == payment[field]
+        assert pending_payment[field] == payment[field]
 
     response = simulate_payment_success(base_url, user_access_token, payment["id"])
 
     assert response.status_code == 200, response.text
-    assert response.json()["status"] == "succeeded"
+    body = response.json()
+    assert body["status"] == "succeeded"
     for field in ("id", "booking_id", "amount", "currency", "failure_reason"):
-        assert response.json()[field] == payment[field]
+        assert body[field] == payment[field]
 
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
     assert saved_payment.status_code == 200, saved_payment.text
-    assert saved_payment.json()["status"] == "succeeded"
+    saved_payment_body = saved_payment.json()
+    assert saved_payment_body["status"] == "succeeded"
     for field in ("id", "booking_id", "amount", "currency", "failure_reason"):
-        assert saved_payment.json()[field] == payment[field]
+        assert saved_payment_body[field] == payment[field]
 
     confirmed = get_booking(base_url, user_access_token, booking["id"])
     assert confirmed.status_code == 200, confirmed.text
-    assert confirmed.json()["status"] == "confirmed"
+    confirmed_booking = confirmed.json()
+    assert confirmed_booking["status"] == "confirmed"
     for field in (
         "id", "user_id", "room_id", "check_in", "check_out", "guests",
         "price_per_night", "total_price", "currency",
     ):
-        assert confirmed.json()[field] == booking[field]
+        assert confirmed_booking[field] == booking[field]

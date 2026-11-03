@@ -53,8 +53,9 @@ def create_priced_hotel(base_url, access_token, city, case):
                 base_url, access_token, room["id"], {"is_available": False}
             )
             assert disabled.status_code == 200, disabled.text
-            assert disabled.json()["id"] == room["id"]
-            assert disabled.json()["is_available"] is False
+            disabled_room = disabled.json()
+            assert disabled_room["id"] == room["id"]
+            assert disabled_room["is_available"] is False
         elif state == "archived":
             archived = archive_room(base_url, access_token, room["id"])
             assert archived.status_code == 204, archived.text

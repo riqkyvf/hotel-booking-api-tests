@@ -28,3 +28,12 @@ def list_bookings(base_url, access_token, params=None):
     return requests.get(
         f"{base_url}/bookings", params=params, headers=headers, timeout=10
     )
+
+
+def cancel_booking(base_url, access_token, booking_id):
+    headers = {}
+    if access_token is not None:
+        headers["Authorization"] = f"Bearer {access_token}"
+    return requests.patch(
+        f"{base_url}/bookings/{booking_id}/cancel", headers=headers, timeout=10
+    )

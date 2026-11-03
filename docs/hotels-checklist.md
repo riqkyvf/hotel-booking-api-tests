@@ -23,35 +23,35 @@
 | HL-003 | limit=1, 2, 100; offset=0, 1, 2 | 200; точный состав и порядок соответствующей страницы контролируемой выборки; параметры отражены в ответе | Passed | [test_hotels_pagination](../tests/test_hotels.py#L101) |
 | HL-004 | Пагинация одной выборки | total равен числу подходящих отелей до пагинации и не меняется между страницами; страницы покрывают ожидаемую последовательность без пересечений | Passed | [test_hotels_pagination_pages](../tests/test_hotels.py#L120) |
 | HL-005 | offset равен размеру выборки или превышает его | 200; items пуст; total остаётся числом подходящих отелей | Passed | [test_hotels_pagination](../tests/test_hotels.py#L101) |
-| HL-006 | Несуществующий уникальный город | 200; items=[], total=0 | Passed | [test_hotels_unknown_city](../tests/test_hotels.py#L140) |
-| HL-007 | Город исходный, в нижнем/верхнем регистре, с крайними пробелами и сочетанием нормализации | 200; точный состав из четырёх отелей нужного города | Passed | [test_hotels_city_normalization](../tests/test_hotels.py#L151) |
-| HL-008 | Город — только часть существующего названия | 200; items=[], total=0; отель соседнего города не включается в точную выборку | Passed | [test_hotels_city_requires_full_match](../tests/test_hotels.py#L177) |
-| HL-009 | min_rating и max_rating отдельно, без city | 200; все возвращённые рейтинги удовлетворяют условию; total не меньше числа заведомо подходящих созданных отелей | Passed | [test_hotels_rating_without_city](../tests/test_hotels.py#L186) |
-| HL-010 | Нижняя/верхняя границы рейтинга, включая 0 и 5; min=max | 200; границы включены; точный состав по контролируемым данным | Passed | [test_hotels_rating_filter](../tests/test_hotels.py#L203) |
-| HL-011 | Комбинация city с диапазоном рейтинга; диапазон без совпадений | Учитываются оба условия; неподходящий город исключён; пустая выборка даёт 200 и total=0 | Passed | [test_hotels_rating_filter](../tests/test_hotels.py#L203) |
-| HL-012 | Сортировка по умолчанию, name и -name | 200; ожидаемый порядок имён; default соответствует name | Passed | [test_hotels_sorting](../tests/test_hotels.py#L219) |
-| HL-013 | Сортировка rating и -rating | 200; рейтинги по возрастанию/убыванию | Passed | [test_hotels_sorting](../tests/test_hotels.py#L219) |
-| HL-014 | Равные имя или рейтинг при обоих направлениях сортировки | Дополнительный порядок — UUID по возрастанию | Passed | [test_hotels_sorting](../tests/test_hotels.py#L219) |
-| HL-015 | Гость, user, admin без include_archived и с явным false | Архивный отель скрыт; items/total содержат только четыре неархивных отеля города | Passed | [test_hotels_hide_archived_by_default](../tests/test_hotels.py#L250) |
-| HL-016 | Admin и include_archived=true | 200; включены четыре неархивных и один архивный отель; total=5; флаги архивности корректны | Passed | [test_hotels_admin_can_include_archived](../tests/test_hotels.py#L272) |
-| HL-017 | Гость и user с include_archived=true | 403 FORBIDDEN; единый формат ошибки и совпадающий request ID | Passed | [test_hotels_archived_list_requires_admin](../tests/test_hotels.py#L295) |
-| HL-018 | limit=0, -1, 101; отрицательный offset; нецелые/нечисловые значения | 422 VALIDATION_ERROR; details указывает query-параметр | Passed | [test_hotels_invalid_query_parameters](../tests/test_hotels.py#L308) |
-| HL-019 | min/max_rating меньше 0, больше 5 или нечисловые | 422 VALIDATION_ERROR; details указывает query-параметр | Passed | [test_hotels_invalid_query_parameters](../tests/test_hotels.py#L308) |
-| HL-020 | min_rating больше max_rating | 422 INVALID_FILTER_RANGE | Passed | [test_hotels_invalid_rating_range](../tests/test_hotels.py#L320) |
-| HL-021 | Неизвестное поле сортировки, неизвестное поле с минусом, двойной минус, пустая строка | 422 INVALID_SORT | Passed | [test_hotels_invalid_sort](../tests/test_hotels.py#L332) |
-| HL-022 | Некорректная строка include_archived | 422 VALIDATION_ERROR, query.include_archived | Passed | [test_hotels_invalid_query_parameters](../tests/test_hotels.py#L308) |
+| HL-006 | Несуществующий уникальный город | 200; items=[], total=0 | Passed | [test_hotels_unknown_city](../tests/test_hotels.py#L141) |
+| HL-007 | Город исходный, в нижнем/верхнем регистре, с крайними пробелами и сочетанием нормализации | 200; точный состав из четырёх отелей нужного города | Passed | [test_hotels_city_normalization](../tests/test_hotels.py#L152) |
+| HL-008 | Город — только часть существующего названия | 200; items=[], total=0; отель соседнего города не включается в точную выборку | Passed | [test_hotels_city_requires_full_match](../tests/test_hotels.py#L178) |
+| HL-009 | min_rating и max_rating отдельно, без city | 200; все возвращённые рейтинги удовлетворяют условию; total не меньше числа заведомо подходящих созданных отелей | Passed | [test_hotels_rating_without_city](../tests/test_hotels.py#L188) |
+| HL-010 | Нижняя/верхняя границы рейтинга, включая 0 и 5; min=max | 200; границы включены; точный состав по контролируемым данным | Passed | [test_hotels_rating_filter](../tests/test_hotels.py#L205) |
+| HL-011 | Комбинация city с диапазоном рейтинга; диапазон без совпадений | Учитываются оба условия; неподходящий город исключён; пустая выборка даёт 200 и total=0 | Passed | [test_hotels_rating_filter](../tests/test_hotels.py#L205) |
+| HL-012 | Сортировка по умолчанию, name и -name | 200; ожидаемый порядок имён; default соответствует name | Passed | [test_hotels_sorting](../tests/test_hotels.py#L221) |
+| HL-013 | Сортировка rating и -rating | 200; рейтинги по возрастанию/убыванию | Passed | [test_hotels_sorting](../tests/test_hotels.py#L221) |
+| HL-014 | Равные имя или рейтинг при обоих направлениях сортировки | Дополнительный порядок — UUID по возрастанию | Passed | [test_hotels_sorting](../tests/test_hotels.py#L221) |
+| HL-015 | Гость, user, admin без include_archived и с явным false | Архивный отель скрыт; items/total содержат только четыре неархивных отеля города | Passed | [test_hotels_hide_archived_by_default](../tests/test_hotels.py#L252) |
+| HL-016 | Admin и include_archived=true | 200; включены четыре неархивных и один архивный отель; total=5; флаги архивности корректны | Passed | [test_hotels_admin_can_include_archived](../tests/test_hotels.py#L274) |
+| HL-017 | Гость и user с include_archived=true | 403 FORBIDDEN; единый формат ошибки и совпадающий request ID | Passed | [test_hotels_archived_list_requires_admin](../tests/test_hotels.py#L297) |
+| HL-018 | limit=0, -1, 101; отрицательный offset; нецелые/нечисловые значения | 422 VALIDATION_ERROR; details указывает query-параметр | Passed | [test_hotels_invalid_query_parameters](../tests/test_hotels.py#L310) |
+| HL-019 | min/max_rating меньше 0, больше 5 или нечисловые | 422 VALIDATION_ERROR; details указывает query-параметр | Passed | [test_hotels_invalid_query_parameters](../tests/test_hotels.py#L310) |
+| HL-020 | min_rating больше max_rating | 422 INVALID_FILTER_RANGE | Passed | [test_hotels_invalid_rating_range](../tests/test_hotels.py#L322) |
+| HL-021 | Неизвестное поле сортировки, неизвестное поле с минусом, двойной минус, пустая строка | 422 INVALID_SORT | Passed | [test_hotels_invalid_sort](../tests/test_hotels.py#L334) |
+| HL-022 | Некорректная строка include_archived | 422 VALIDATION_ERROR, query.include_archived | Passed | [test_hotels_invalid_query_parameters](../tests/test_hotels.py#L310) |
 
 ## GET /hotels/{hotel_id}
 
 | ID | Проверка / варианты | Ожидаемый результат | Статус | Автотест |
 |---|---|---|---|---|
-| HD-001 | Существующий неархивный отель без токена | 200; точные ID и сохранённые данные; обязательные поля и типы; X-Request-ID | Passed | [test_get_hotel_for_each_role](../tests/test_hotels.py#L344) |
-| HD-002 | Тот же сценарий для user и admin | 200; корректные данные отеля | Passed | [test_get_hotel_for_each_role](../tests/test_hotels.py#L344) |
-| HD-003 | Случайный корректный UUID без соответствующего отеля | 404 NOT_FOUND | Passed | [test_get_hotel_not_found](../tests/test_hotels.py#L358) |
-| HD-004 | Некорректный UUID | 422 VALIDATION_ERROR, path.hotel_id | Passed | [test_get_hotel_invalid_uuid](../tests/test_hotels.py#L370) |
-| HD-005 | Архивный отель для гостя и user | 404 NOT_FOUND; данные отеля не возвращаются | Passed | [test_get_archived_hotel_hidden](../tests/test_hotels.py#L383) |
-| HD-006 | Архивный отель для admin | 200; правильный ID и данные, is_archived=true | Passed | [test_get_archived_hotel_as_admin](../tests/test_hotels.py#L395) |
-| HD-007 | Ошибки 404 и 422 | ERROR_SCHEMA; X-Request-ID присутствует и совпадает с error.request_id | Passed | [test_get_hotel_not_found](../tests/test_hotels.py#L358), [test_get_hotel_invalid_uuid](../tests/test_hotels.py#L370) |
+| HD-001 | Существующий неархивный отель без токена | 200; точные ID и сохранённые данные; обязательные поля и типы; X-Request-ID | Passed | [test_get_hotel_for_each_role](../tests/test_hotels.py#L346) |
+| HD-002 | Тот же сценарий для user и admin | 200; корректные данные отеля | Passed | [test_get_hotel_for_each_role](../tests/test_hotels.py#L346) |
+| HD-003 | Случайный корректный UUID без соответствующего отеля | 404 NOT_FOUND | Passed | [test_get_hotel_not_found](../tests/test_hotels.py#L361) |
+| HD-004 | Некорректный UUID | 422 VALIDATION_ERROR, path.hotel_id | Passed | [test_get_hotel_invalid_uuid](../tests/test_hotels.py#L373) |
+| HD-005 | Архивный отель для гостя и user | 404 NOT_FOUND; данные отеля не возвращаются | Passed | [test_get_archived_hotel_hidden](../tests/test_hotels.py#L386) |
+| HD-006 | Архивный отель для admin | 200; правильный ID и данные, is_archived=true | Passed | [test_get_archived_hotel_as_admin](../tests/test_hotels.py#L398) |
+| HD-007 | Ошибки 404 и 422 | ERROR_SCHEMA; X-Request-ID присутствует и совпадает с error.request_id | Passed | [test_get_hotel_not_found](../tests/test_hotels.py#L361), [test_get_hotel_invalid_uuid](../tests/test_hotels.py#L373) |
 
 ## Ценовые фильтры и сортировка
 
@@ -63,20 +63,20 @@
 
 | ID | Проверка / варианты | Ожидаемый результат | Статус | Автотест |
 |---|---|---|---|---|
-| HP-001 | min_price и max_price отдельно и совместно | 200; точный состав отелей и total по контролируемым данным | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L114) |
-| HP-002 | Равные границы и точные цены, включая 0.01 и 9999999999.99 | Границы включены; совпадающие номера учитываются | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L114) |
-| HP-003 | min_price=0 и max_price=0 | Ноль допустим как граница: min_price=0 включает отели с активными номерами; max_price=0 даёт пустую выборку | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L114) |
-| HP-004 | В одном отеле дешёвый номер ниже min, дорогой выше max; ни одного внутри диапазона | Отель исключён: нельзя удовлетворить две границы разными номерами | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L114) |
-| HP-005 | Дешёвые отключённые и архивные номера | Не влияют ни на включение в ценовой фильтр, ни на минимальную цену сортировки | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L114), [test_hotels_price_sorting](../tests/test_hotel_prices.py#L130) |
-| HP-006 | Отели без номеров, только с отключёнными или только с архивными номерами | Исключены при ценовом фильтре | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L114) |
-| HP-007 | price и -price, в том числе 9000 и 10000 | Числовой порядок по минимальной цене, а не строковый | Passed | [test_hotels_price_sorting](../tests/test_hotel_prices.py#L130) |
-| HP-008 | Отели без активной цены при price и -price | Идут последними в обоих направлениях | Passed | [test_hotels_without_price_are_last](../tests/test_hotel_prices.py#L236) |
-| HP-009 | Равные минимальные цены и несколько отелей без цены | Внутри равенства UUID по возрастанию при обоих направлениях | Passed | [test_hotels_price_pagination](../tests/test_hotel_prices.py#L180), [test_hotels_without_price_are_last](../tests/test_hotel_prices.py#L236) |
-| HP-010 | Диапазон 6000–8000 и сортировка price/-price; A: 1000/7000, B: 6500 | Попадают A и B; asc: A,B; desc: B,A. Для A сортировка использует 1000 | Passed | [test_hotels_filtered_price_sorting](../tests/test_hotel_prices.py#L145) |
-| HP-011 | Цена + город + рейтинг | Выполняются все условия; отель другого города с подходящими ценой и рейтингом исключён | Passed | [test_hotels_price_and_rating_filter](../tests/test_hotel_prices.py#L161) |
-| HP-012 | Пагинация при обоих направлениях сортировки по цене | Страницы соответствуют полному ожидаемому порядку, не пересекаются, total не меняется | Passed | [test_hotels_price_pagination](../tests/test_hotel_prices.py#L180) |
-| HP-013 | Отрицательные, слишком большие и нечисловые min_price/max_price | 422 VALIDATION_ERROR с путём query-параметра; единый формат и request ID | Passed | [test_hotels_invalid_price_parameters](../tests/test_hotel_prices.py#L212) |
-| HP-014 | min_price больше max_price | 422 INVALID_FILTER_RANGE; единый формат и request ID | Passed | [test_hotels_invalid_price_range](../tests/test_hotel_prices.py#L224) |
+| HP-001 | min_price и max_price отдельно и совместно | 200; точный состав отелей и total по контролируемым данным | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L115) |
+| HP-002 | Равные границы и точные цены, включая 0.01 и 9999999999.99 | Границы включены; совпадающие номера учитываются | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L115) |
+| HP-003 | min_price=0 и max_price=0 | Ноль допустим как граница: min_price=0 включает отели с активными номерами; max_price=0 даёт пустую выборку | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L115) |
+| HP-004 | В одном отеле дешёвый номер ниже min, дорогой выше max; ни одного внутри диапазона | Отель исключён: нельзя удовлетворить две границы разными номерами | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L115) |
+| HP-005 | Дешёвые отключённые и архивные номера | Не влияют ни на включение в ценовой фильтр, ни на минимальную цену сортировки | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L115), [test_hotels_price_sorting](../tests/test_hotel_prices.py#L131) |
+| HP-006 | Отели без номеров, только с отключёнными или только с архивными номерами | Исключены при ценовом фильтре | Passed | [test_hotels_price_filter](../tests/test_hotel_prices.py#L115) |
+| HP-007 | price и -price, в том числе 9000 и 10000 | Числовой порядок по минимальной цене, а не строковый | Passed | [test_hotels_price_sorting](../tests/test_hotel_prices.py#L131) |
+| HP-008 | Отели без активной цены при price и -price | Идут последними в обоих направлениях | Passed | [test_hotels_without_price_are_last](../tests/test_hotel_prices.py#L237) |
+| HP-009 | Равные минимальные цены и несколько отелей без цены | Внутри равенства UUID по возрастанию при обоих направлениях | Passed | [test_hotels_price_pagination](../tests/test_hotel_prices.py#L181), [test_hotels_without_price_are_last](../tests/test_hotel_prices.py#L237) |
+| HP-010 | Диапазон 6000–8000 и сортировка price/-price; A: 1000/7000, B: 6500 | Попадают A и B; asc: A,B; desc: B,A. Для A сортировка использует 1000 | Passed | [test_hotels_filtered_price_sorting](../tests/test_hotel_prices.py#L146) |
+| HP-011 | Цена + город + рейтинг | Выполняются все условия; отель другого города с подходящими ценой и рейтингом исключён | Passed | [test_hotels_price_and_rating_filter](../tests/test_hotel_prices.py#L162) |
+| HP-012 | Пагинация при обоих направлениях сортировки по цене | Страницы соответствуют полному ожидаемому порядку, не пересекаются, total не меняется | Passed | [test_hotels_price_pagination](../tests/test_hotel_prices.py#L181) |
+| HP-013 | Отрицательные, слишком большие и нечисловые min_price/max_price | 422 VALIDATION_ERROR с путём query-параметра; единый формат и request ID | Passed | [test_hotels_invalid_price_parameters](../tests/test_hotel_prices.py#L213) |
+| HP-014 | min_price больше max_price | 422 INVALID_FILTER_RANGE; единый формат и request ID | Passed | [test_hotels_invalid_price_range](../tests/test_hotel_prices.py#L225) |
 
 ## Ограничения покрытия
 
