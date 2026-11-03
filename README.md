@@ -5,7 +5,12 @@
 ## Структура
 
 ```text
-docs/                       Требования и тестовая документация
+docs/                       Требования, покрытие и история проверок
+    README.md               Навигация и запуск стенда
+    testing-auth.md         Регистрация, вход, профиль и открытые вопросы
+    testing-hotels.md       Каталог отелей и цены
+    testing-bookings.md     Бронирование, платежи и права доступа
+    test-runs.md            Общий журнал прогонов
 data/                       Статические наборы тестовых данных
     auth.py                 Наборы email и паролей для параметризации
     profile.py              Наборы изменений профиля и невалидных запросов
@@ -89,9 +94,9 @@ Copy-Item .env.example .env
 .\.venv\Scripts\python.exe -m pytest tests/test_booking_flow.py -v
 ```
 
-Последний полный прогон от 03.11.2026 после упрощения читаемости фикстур и сценариев: **501 passed за 179.99 с**, без падений, ошибок и пропусков. Проверены все 17 модулей, включая SQL-тест истечения. Отчёт `junit-readability-cleanup.xml` исключён из Git. Команда и перечень изменений — в [записи прогона](docs/readability-cleanup-run-2026-11-03.md).
+Последний полный прогон от 03.11.2026 после упрощения читаемости фикстур и сценариев: **501 passed за 179.99 с**, без падений, ошибок и пропусков. Проверены все 17 модулей, включая SQL-тест истечения. Временные JUnit XML удалены из корня при уборке; новые отчёты по-прежнему исключены из Git. Команда и перечень изменений — в [записи прогона](docs/test-runs.md#readability-cleanup-run-2026-11-03).
 
-Предыдущий полный прогон после унификации авторизации и выделения проверки ошибок: **501 passed за 179.94 с**. Версии, ID образа API и отпечаток исходников того состояния приведены в [предыдущей записи](docs/architecture-refactor-run-2026-11-03.md). Оба прогона выполнены на Python 3.14.2 с незакоммиченными изменениями. Исторические результаты отдельных этапов сохранены в чек-листах.
+Предыдущий полный прогон после унификации авторизации и выделения проверки ошибок: **501 passed за 179.94 с**. Версии, ID образа API и отпечаток исходников того состояния приведены в [предыдущей записи](docs/test-runs.md#architecture-refactor-run-2026-11-03). Оба прогона выполнены на Python 3.14.2 с незакоммиченными изменениями. Исторические результаты отдельных этапов сохранены в чек-листах.
 
 Для SQL-теста истечения и запуска остальных тестов без доступа к БД:
 
@@ -147,20 +152,20 @@ is_active = true, отсутствие password и password_hash в ответе
 
 Фикстура `base_url` из `tests/conftest.py` передаст адрес API тесту, если указать `base_url` в аргументах тестовой функции.
 
-Чек-лист: [docs/registration-checklist.md](docs/registration-checklist.md).
-Чек-лист login: [docs/login-checklist.md](docs/login-checklist.md).
-Чек-лист изменения профиля: [docs/profile-checklist.md](docs/profile-checklist.md).
-Чек-лист чтения отелей: [docs/hotels-checklist.md](docs/hotels-checklist.md).
-Чек-лист основного пути бронирования и оплаты: [docs/booking-payment-checklist.md](docs/booking-payment-checklist.md).
-Чек-лист пересечения дат: [docs/booking-overlap-checklist.md](docs/booking-overlap-checklist.md).
-Чек-лист отмены брони: [docs/booking-cancellation-checklist.md](docs/booking-cancellation-checklist.md).
-Чек-лист доступа к чужим данным: [docs/booking-access-checklist.md](docs/booking-access-checklist.md).
-Чек-лист прав администратора: [docs/admin-booking-access-checklist.md](docs/admin-booking-access-checklist.md).
-Чек-лист неуспешной оплаты: [docs/payment-failure-checklist.md](docs/payment-failure-checklist.md).
-Чек-лист повторных запросов: [docs/repeated-requests-checklist.md](docs/repeated-requests-checklist.md).
-Чек-лист ограничений бронирования: [docs/booking-restrictions-checklist.md](docs/booking-restrictions-checklist.md).
-Чек-лист истечения удержания: [docs/booking-expiration-checklist.md](docs/booking-expiration-checklist.md).
-Вопросы к требованиям: [docs/registration-requirements-questions.md](docs/registration-requirements-questions.md).
+Чек-лист: [docs/registration-checklist.md](docs/testing-auth.md#registration-checklist).
+Чек-лист login: [docs/login-checklist.md](docs/testing-auth.md#login-checklist).
+Чек-лист изменения профиля: [docs/profile-checklist.md](docs/testing-auth.md#profile-checklist).
+Чек-лист чтения отелей: [docs/hotels-checklist.md](docs/testing-hotels.md#hotels-checklist).
+Чек-лист основного пути бронирования и оплаты: [docs/booking-payment-checklist.md](docs/testing-bookings.md#booking-payment-checklist).
+Чек-лист пересечения дат: [docs/booking-overlap-checklist.md](docs/testing-bookings.md#booking-overlap-checklist).
+Чек-лист отмены брони: [docs/booking-cancellation-checklist.md](docs/testing-bookings.md#booking-cancellation-checklist).
+Чек-лист доступа к чужим данным: [docs/booking-access-checklist.md](docs/testing-bookings.md#booking-access-checklist).
+Чек-лист прав администратора: [docs/admin-booking-access-checklist.md](docs/testing-bookings.md#admin-booking-access-checklist).
+Чек-лист неуспешной оплаты: [docs/payment-failure-checklist.md](docs/testing-bookings.md#payment-failure-checklist).
+Чек-лист повторных запросов: [docs/repeated-requests-checklist.md](docs/testing-bookings.md#repeated-requests-checklist).
+Чек-лист ограничений бронирования: [docs/booking-restrictions-checklist.md](docs/testing-bookings.md#booking-restrictions-checklist).
+Чек-лист истечения удержания: [docs/booking-expiration-checklist.md](docs/testing-bookings.md#booking-expiration-checklist).
+Вопросы к требованиям: [docs/registration-requirements-questions.md](docs/testing-auth.md#registration-requirements-questions).
 
 Согласованная политика email и пароля: [FR-01](docs/requirements.md#fr-01-пользователи-и-авторизация). С 03.11.2026 целевой контракт требует ASCII-email и пароль из печатных ASCII-символов без пробелов. Ограничения реализованы в локальном коде приложения. Полный HTTP-прогон регистрации, входа, сквозных сценариев, изменения профиля и чтения отелей от 03.11.2026: **431 passed за 114.06 с**. Модуль профиля содержит 105 случаев, модули чтения отелей на момент того прогона — 102 (72 общих и 30 ценовых); после упрощения — 104 (72 общих и 32 ценовых). Локальный отчёт — `junit.xml` (исключён из Git). Результат предыдущего прогона 145 случаев относится к прежним правилам.
 
