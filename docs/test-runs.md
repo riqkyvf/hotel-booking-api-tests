@@ -5,6 +5,94 @@
 - [Проверка упрощения читаемости — 03.11.2026](#readability-cleanup-run-2026-11-03)
 - [Полный прогон после точечного рефакторинга](#architecture-refactor-run-2026-11-03)
 
+<a id="booking-payment-empty-auth-run-2026-11-04"></a>
+
+## Бронирования и платежи без токена/с пустым Bearer — 04.11.2026
+
+**46 passed за 38.19 с**, 0 failures/errors/skipped: 14 новых случаев и 32 существующих связанных. Один целевой запуск, **полный прогон не выполнялся**. Python 3.14.2, локальный тестовый API; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_payment_authorization.py tests/test_authorization.py tests/test_booking_access.py tests/test_admin_booking_access.py -q --junitxml=junit-booking-payment-auth.xml
+```
+
+Новый модуль проверяет только отсутствие заголовка и пустой Bearer на семи операциях: создание/чтение/отмена брони, создание/чтение/симуляции платежа. Реальный PreparedRequest подтверждает различие заголовков. Проверяются 401, ERROR_SCHEMA/request ID/WWW-Authenticate и отсутствие нежелательных изменений через API. POST выполняются с валидными данными и подходящими состояниями, после отказа владелец может создать бронь/платёж. GET списка уже имел эти проверки и не дублировался. Сценарии — [BP-AUTH-001–003](testing-auth.md#booking-payment-empty-auth).
+
+Прочие невалидные JWT в новых тестах не добавлялись; прежние связанные тесты сохранены. Ключ JWT не использовался. API-клиенты, приложение, зависимости и общие фикстуры не менялись. В карте уточнено покрытие семи операций и оставлены прочие JWT-пробелы; уровни остались 26 «Сценарии», 1 «Частично», 2 «Нет». JUnit XML — временный локальный артефакт, исключённый из Git.
+
+<a id="booking-payment-reading-run-2026-11-04"></a>
+
+## Чтение брони и платежа: UUID и схемы — 04.11.2026
+
+Новый модуль: **44 passed за 27.86 с**. Связанные проверки доступа и платёжных состояний: **30 passed за 34.53 с**. Оба запуска без failures/errors/skipped, итого 74 случая двумя целевыми запусками. **Полный прогон не выполнялся.** Python 3.14.2; локальный тестовый API и БД; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_payment_reading.py -q --junitxml=junit-booking-payment-reading.xml
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_access.py tests/test_admin_booking_access.py tests/test_booking_payment_states.py -q --junitxml=junit-booking-payment-reading-related.xml
+```
+
+Добавлены BOOKING_SCHEMA/PAYMENT_SCHEMA с обязательными полями, типами, enum, UUID/date/date-time и форматами денежных строк. FormatChecker включён явно; корректность самих схем проверена Draft202012Validator.check_schema. READ-001–005 проверяют 404 для неизвестных ID, 422 с путём поля для неверных ID, схемы в шести подготовках состояний для owner/admin и семантику сумм/связей/UTC. Подробности — [READ-001–005](testing-bookings.md#booking-payment-reading).
+
+Expired готовится существующим SQL-переносом expires_at, с меткой db. Реальный completed и матрица JWT этих ручек остаются пробелами. API-функции, приложение, зависимости и общие фикстуры не менялись. Карта: 26 операций «Сценарии», 1 «Частично», 2 «Нет». JUnit XML — временные локальные артефакты, исключённые из Git.
+
+<a id="room-availability-run-2026-11-04"></a>
+
+## Доступность номера — 04.11.2026
+
+Новый модуль: **53 passed за 19.94 с**. Связанные проверки пересечений, ограничений, истечения и основного пути: **30 passed за 28.13 с**. Оба запуска без failures/errors/skipped, итого 83 случая двумя целевыми запусками. **Полный прогон не выполнялся.** Python 3.14.2, локальный тестовый API и БД; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_room_availability.py -q --junitxml=junit-room-availability.xml
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_overlap.py tests/test_booking_restrictions.py tests/test_booking_expiration.py tests/test_booking_flow.py -q --junitxml=junit-room-availability-related.xml
+```
+
+Сценарии [AV-001–009](testing-bookings.md#room-availability): обязательные query, форматы/границы дат и гостей, расчёт суммы/ночей, публичное чтение, ресурс/архив, приоритет причин недоступности, GET без резервирования, освобождение истёкшего удержания. Для одного случая используется существующая SQL-подготовка expires_at, без изменения статусов; остальные — API. Приложение, зависимости, API-функции и общие фикстуры не менялись. Карта: 24 операции «Сценарии», 3 «Частично», 2 «Нет». JUnit XML — временные локальные артефакты, исключённые из Git.
+
+<a id="booking-list-run-2026-11-04"></a>
+
+## Список бронирований — 04.11.2026
+
+Новый модуль: **70 passed за 104.43 с**. Связанные проверки доступа user/admin: **20 passed за 21.82 с**. Оба запуска без failures/errors/skipped; итого 90 случаев двумя целевыми запусками. **Полный прогон не выполнялся.** Python 3.14.2; локальный API, незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_list.py -q --junitxml=junit-booking-list.xml
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_access.py tests/test_admin_booking_access.py -q --junitxml=junit-booking-list-related.xml
+```
+
+Добавлена контролируемая выборка с четырьмя бронями владельца и одной чужой, двумя отелями и равными значениями дат/сумм. Проверены фильтры и сочетания, включительность дат, сортировки/defaults/UUID tie-break, страницы и чтение без пропусков, admin across-users внутри своего отеля, 403 user_id обычному пользователю, ошибки query/sort/range и неизвестные фильтры. Подробности — [BL-001–009](testing-bookings.md#booking-list).
+
+Реальные expired/completed в новой выборке отсутствуют; для этих enum проверены только пустые результаты. SQL, sleep, изменения API-функций, общих фикстур, приложения и зависимостей не потребовались. Карта: 23 операции «Сценарии», 4 «Частично», 2 «Нет». JUnit XML — временные артефакты, исключённые из Git.
+
+<a id="room-management-run-2026-11-04"></a>
+
+## Управление номерами — 04.11.2026
+
+Новый модуль: **86 passed за 25.50 с**. Связанные модули: **68 passed за 41.88 с**. Оба запуска без failures/errors/skipped, итого 154 случая двумя целевыми запусками. **Полный прогон не выполнялся.** Python 3.14.2, локальный тестовый API; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_room_management.py -q --junitxml=junit-room-management.xml
+.\.venv\Scripts\python.exe -m pytest tests/test_room_booking_integrity.py tests/test_rooms.py tests/test_admin_operations_access.py -q --junitxml=junit-room-management-related.xml
+```
+
+Сценарии [RM-001–011](testing-hotels.md#room-management): успешный PUT, границы и валидация полей/тел, конфликт номера без частичного изменения, выключение/включение с доступностью на даты, запрет изменения архива, повтор DELETE, сохранность родителя, ID и JWT. Существующие проверки CAPACITY_IN_USE, ACTIVE_BOOKINGS_EXIST и оплаты после отключения сохранены и прошли в связанном наборе.
+
+PUT/PATCH функций номеров получили необязательный raw_body. Приложение, зависимости, общие фикстуры и окружение не менялись. Карта: 22 операции «Сценарии», 5 «Частично», 2 «Нет»; сохранены конкретные пробелы. JUnit XML — временные локальные артефакты, исключённые из Git.
+
+<a id="admin-users-run-2026-11-04"></a>
+
+## Администрирование пользователей — 04.11.2026
+
+Новый основной модуль: **50 passed за 14.89 с**. Изолированный LAST_ACTIVE_ADMIN: **3 passed за 0.56 с**. Связанные тесты: **31 passed за 13.60 с**. Все три отчёта без failures/errors/skipped. **Полный прогон не выполнялся.** Python 3.14.2; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_admin_users.py -q --junitxml=junit-admin-users.xml
+.\.venv\Scripts\python.exe scripts/run_last_admin_tests.py
+.\.venv\Scripts\python.exe -m pytest tests/test_admin_operations_access.py tests/test_auth_flow.py tests/test_profile.py::test_disabled_user_cannot_update_profile tests/test_login.py::test_login_with_disabled_user -q --junitxml=junit-admin-users-related.xml
+```
+
+Сценарии и границы — [AU-001–011](testing-auth.md#admin-users). Основной API: только собственные тестовые пользователи с восстановлением временно повышенной роли. LAST_ACTIVE_ADMIN: новые временные Docker PostgreSQL/API, отдельная сеть/порт, новые случайные секреты, 409 для трёх попыток изменения последнего admin. Контейнеры и сеть удалены; отдельная проверка docker ps/network ls по уникальному префиксу не нашла оставшихся ресурсов. Секреты основного стенда не извлекались.
+
+В административном PATCH добавлен raw_body, существующие вызовы совместимы. Общие фикстуры, зависимости и приложение не изменялись. Добавлена метка isolated_admin; без отдельного API эти три теста пропускаются. JUnit: junit-admin-users.xml, junit-last-admin-isolated.xml, junit-admin-users-related.xml — временные артефакты, исключённые из Git. Карта: 19 операций «Сценарии», 8 «Частично», 2 «Нет».
+
 <a id="hotel-management-run-2026-11-03"></a>
 
 ## Управление отелями — 03.11.2026

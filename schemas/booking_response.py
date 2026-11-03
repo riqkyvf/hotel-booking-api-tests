@@ -1,0 +1,21 @@
+BOOKING_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["id", "user_id", "room_id", "check_in", "check_out", "guests", "status",
+                 "price_per_night", "total_price", "currency", "expires_at", "created_at", "updated_at"],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "user_id": {"type": "string", "format": "uuid"},
+        "room_id": {"type": "string", "format": "uuid"},
+        "check_in": {"type": "string", "format": "date"},
+        "check_out": {"type": "string", "format": "date"},
+        "guests": {"type": "integer", "minimum": 1, "maximum": 10},
+        "status": {"enum": ["pending_payment", "confirmed", "cancelled", "expired", "completed"]},
+        "price_per_night": {"type": "string", "pattern": r"^(?:0|[1-9][0-9]*)\.[0-9]{2}$"},
+        "total_price": {"type": "string", "pattern": r"^(?:0|[1-9][0-9]*)\.[0-9]{2}$"},
+        "currency": {"const": "RUB"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"},
+    },
+}

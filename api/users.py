@@ -31,7 +31,13 @@ def update_profile(base_url, access_token, data=None, *, raw_body=None):
     )
 
 
-def update_user_as_admin(base_url, access_token, user_id, data):
+def update_user_as_admin(base_url, access_token, user_id, data=None, *, raw_body=None):
+    if raw_body is not None:
+        return requests.patch(
+            f"{base_url}/admin/users/{user_id}", data=raw_body,
+            headers={**authorization_headers(access_token), "Content-Type": "application/json"},
+            timeout=10,
+        )
     return requests.patch(
         f"{base_url}/admin/users/{user_id}",
         json=data,
