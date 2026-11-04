@@ -54,6 +54,7 @@ def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, p
 
 
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
+@pytest.mark.smoke
 def test_cancellation_releases_room_for_another_user(
     base_url, stay_dates, booking_to_cancel, user_access_token, second_user,
     payment_status, expected_payment_status,

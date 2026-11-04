@@ -129,7 +129,6 @@ def disabled_user_credentials(base_url, registered_user, admin_access_token):
 
 @pytest.fixture
 def available_room(base_url, admin_access_token):
-    """Return a newly created hotel and its available room: {hotel, room}."""
     hotel_response = create_hotel(
         base_url,
         admin_access_token,

@@ -81,6 +81,7 @@ def archived_catalog_hotel(base_url, admin_access_token, hotel_catalog):
     return hotel
 
 
+@pytest.mark.smoke
 def test_hotels_default_pagination(base_url):
     response = list_hotels(base_url)
 
@@ -323,6 +324,7 @@ def test_hotels_invalid_sort(base_url, sort):
 
 
 @pytest.mark.parametrize("role", HOTEL_READER_ROLES)
+@pytest.mark.smoke
 def test_get_hotel_for_each_role(
     base_url, hotel, user_access_token, admin_access_token, role
 ):

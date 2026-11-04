@@ -2,12 +2,15 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+import pytest
+
 from api.bookings import create_booking, get_booking, list_bookings
 from api.payments import create_payment, get_payment, simulate_payment_success
 from api.rooms import get_room, get_room_availability, list_rooms
 from data.booking import BOOKING_NIGHTS, BOOKING_ROOM_DATA
 
 
+@pytest.mark.smoke
 def test_user_can_select_available_room(base_url, available_room, stay_dates):
     hotel = available_room["hotel"]
     room = available_room["room"]
@@ -49,6 +52,7 @@ def test_user_can_select_available_room(base_url, available_room, stay_dates):
     assert availability["currency"] == "RUB"
 
 
+@pytest.mark.smoke
 def test_user_can_create_and_read_booking(
     base_url, available_room, stay_dates, registered_user, user_access_token
 ):
@@ -91,6 +95,7 @@ def test_user_can_create_and_read_booking(
     assert booking_page["items"][0]["status"] == "pending_payment"
 
 
+@pytest.mark.smoke
 def test_user_can_pay_for_booking(base_url, available_room, stay_dates, user_access_token):
     payload = {"room_id": available_room["room"]["id"], **stay_dates}
     booked = create_booking(base_url, user_access_token, payload, uuid4().hex)

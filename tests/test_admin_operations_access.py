@@ -22,6 +22,7 @@ def ordinary_user_profile(base_url, user_access_token):
     return profile
 
 
+@pytest.mark.smoke
 def test_user_cannot_create_hotel(base_url, user_access_token, ordinary_user_profile):
     city = f"Forbidden_{uuid4().hex}"
     payload = {**HOTEL_TEMPLATE, "city": city}

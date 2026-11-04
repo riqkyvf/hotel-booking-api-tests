@@ -5,6 +5,7 @@ from api.users import get_profile, update_user_as_admin
 from data.auth import ASCII_EMAIL_DOMAINS, VALID_ASCII_PASSWORD_CASES
 
 
+@pytest.mark.smoke
 def test_registered_user_can_login_and_get_profile(base_url, registered_user):
     login_response = login(
         base_url,

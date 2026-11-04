@@ -5,6 +5,118 @@
 - [Проверка упрощения читаемости — 03.11.2026](#readability-cleanup-run-2026-11-03)
 - [Полный прогон после точечного рефакторинга](#architecture-refactor-run-2026-11-03)
 
+<a id="smoke-run-2026-11-04"></a>
+
+## Выделение smoke — 04.11.2026
+
+**19 passed, 1110 deselected за 12.40 с**, 0 failures/errors/skipped. Запущены только существующие тесты, выбранные маркером smoke. Полный прогон не выполнялся. До запуска collect-only подтвердил 19 выбранных из 1129 собранных случаев.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -m smoke -q --tb=short --junitxml=junit-smoke.xml
+```
+
+[Состав и обоснование](README.md#smoke-suite): health, регистрация/вход/профиль, каталог отелей и номеров, доступность, создание/чтение/список брони, успешная оплата, отмена в трёх состояниях платежа, запрет совпадающих дат pending_payment/confirmed, 401 без токена на трёх операциях и 403 обычному пользователю на создание отеля.
+
+Добавлен зарегистрированный маркер smoke. Основная логика тестов, общие фикстуры, приложение и зависимости не менялись. Часть случаев отмечена через pytest.param для ограничения выборки. Прямой SQL не нужен; API использует свою БД. JUnit XML — игнорируемый локальный артефакт. Изменение карты описывает выборку, а не прирост покрытия.
+
+<a id="health-success-run-2026-11-04"></a>
+
+## Успешные health-проверки — 04.11.2026
+
+**2 passed за 0.15 с**, 0 failures/errors/skipped. Запущены только два новых случая [test_health.py](../tests/test_health.py); полный набор не запускался.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_health.py -q --tb=short --junitxml=junit-health.xml
+```
+
+Публичные GET /health/live и /health/ready без авторизации: HTTP 200, Content-Type application/json и точные JSON-тела {"status":"alive"}/{"status":"ready"}. Добавлены две функции запросов в api/health.py. Подготовка пользователей/данных и прямой доступ к БД не требуются; используется работающий локальный API. Негативные ответы 503 и отключение инфраструктуры не входят в запрошенный объём. Карта обновлена: обе операции «Частично», поскольку проверяется только успешный контракт. JUnit — игнорируемый локальный артефакт.
+
+<a id="booking-completion-run-2026-11-04"></a>
+
+## Завершение проживания — 04.11.2026
+
+**23 passed за 26.32 с**, 0 failures/errors/skipped: восемь новых и 15 связанных случаев состояний, идемпотентности и истечения. Python 3.14.2, локальный API/PostgreSQL. Полный прогон не выполнялся.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_completion.py tests/test_booking_payment_states.py tests/test_booking_idempotency.py tests/test_booking_expiration.py -q --tb=short --junitxml=junit-booking-completion.xml
+```
+
+[CMP-001–003](testing-bookings.md#booking-completion): реальный completed в день выезда UTC, неизменный succeeded-платёж, запреты отмены/платёжных операций, запись в списке completed и исторический replay без новой брони. Полные SQL-истории подтверждают один системный переход confirmed→completed и отсутствие изменений платежа. Подготовка SQL меняет только даты собственной confirmed-брони с сохранением длительности и стоимости. Приложение, API-клиенты, общие фикстуры и зависимости не менялись.
+
+Первый запуск в sandbox завершился 23 setup errors: WinError 10013 при доступе к localhost, тестовые тела не выполнялись. После предоставления процессу доступа к локальному стенду тот же целевой набор прошёл. JUnit XML — игнорируемый локальный артефакт. Точная полночь и worker в изоляции не проверялись; worker может выполнить переход до первого GET.
+
+<a id="payment-cancellation-concurrency-run-2026-11-04"></a>
+
+## Оплата одновременно с отменой — 04.11.2026
+
+**24 passed за 26.39 с**, 0 failures/errors/skipped: один новый тест и 23 существующих связанных случая конкурентных платежей, отмены, повторов и состояний. Один целевой запуск; **полный прогон не выполнялся**. Python 3.14.2, локальный API и PostgreSQL; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_payment_concurrency.py tests/test_booking_cancellation.py tests/test_payment_repeated_requests.py tests/test_booking_payment_states.py -q --tb=short --junitxml=junit-payment-cancellation-race.xml
+```
+
+[CON-005](testing-bookings.md#payment-cancellation-concurrency): два потока/Barrier выполняют simulate-success и cancel. В этом запуске реализовалась cancellation_first_payment_rejected (JUnit suite property payment_cancellation_outcome): отмена 200, оплата 409 BOOKING_NOT_PAYABLE, итог cancelled/cancelled. Номер свободен; одна строка платежа, точные SQL-истории содержат создание и по одному переходу отмены без succeeded/refunded.
+
+Тест допускает и проверяет вторую ветку 200 оплаты + 200 отмены с итогом cancelled/refunded и соответствующей историей, но этот конкретный конкурентный запуск её не подтвердил. Победитель не задаётся, повторов до нужного исхода нет; Barrier не гарантирует пересечения транзакций. Существующие API/SQL-функции, общие фикстуры, приложение и зависимости не менялись. Карта дополнена для cancel и simulate-success. JUnit XML — временный локальный артефакт, исключённый из Git.
+
+<a id="payment-success-concurrency-run-2026-11-04"></a>
+
+## Конкурентная успешная оплата — 04.11.2026
+
+**11 passed за 10.08 с**, 0 failures/errors/skipped: один новый тест и десять существующих случаев конкурентного создания платежа, повторов, отказа оплаты и основного пути. Один целевой запуск; **полный прогон не выполнялся**. Python 3.14.2, локальный API и PostgreSQL; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_payment_concurrency.py tests/test_payment_repeated_requests.py tests/test_payment_failure.py tests/test_booking_flow.py -q --tb=short --junitxml=junit-payment-success-concurrency.xml
+```
+
+[CON-004](testing-bookings.md#payment-success-concurrency): два simulate-success одного платежа через Barrier/два потока дали 200 и 409 BOOKING_NOT_PAYABLE. Сохранённые состояния confirmed/succeeded и денежные поля подтверждены API. Read-only SQL подтвердил единственную строку платежа и точные истории: создание плюс по одному переходу pending→succeeded и pending_payment→confirmed, без дополнительных событий.
+
+Добавлена get_booking_payment_history с проверкой ownership booking/user/payment, параметрами UUID и read-only-транзакцией. Существующая get_booking_payment_states переиспользована. SQL-записей нет; API-клиенты, общие фикстуры, зависимости и приложение не менялись. Карта обновлена для simulate-success; другие гонки остаются пробелами. JUnit XML — временный локальный артефакт, исключённый из Git.
+
+<a id="payment-concurrency-run-2026-11-04"></a>
+
+## Конкурентное создание платежа — 04.11.2026
+
+**10 passed за 8.52 с**, 0 failures/errors/skipped: один новый конкурентный тест и девять существующих случаев повторов, отказа оплаты и основного пути. Один целевой запуск; **полный прогон не выполнялся**. Python 3.14.2, локальный тестовый API и PostgreSQL; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_payment_concurrency.py tests/test_payment_repeated_requests.py tests/test_payment_failure.py tests/test_booking_flow.py -q --tb=short --junitxml=junit-payment-concurrency.xml
+```
+
+[CON-003](testing-bookings.md#payment-concurrency): два потока/Barrier, одна свежая pending_payment-бронь, действующий JWT владельца. Получены 201 pending и 409 PAYMENT_ALREADY_PENDING; GET подтвердили платёж и неизменную бронь. Новая get_booking_payment_states читает ID/статусы всех платежей только собственной брони с проверкой user_id и read-only-транзакцией; до гонки строк ноль, после ровно одна pending с ID успешного POST. Тест отмечен db и требует БД самого API.
+
+SQL-записи, API-функции, общие фикстуры, приложение и зависимости не менялись. Ключи JWT не извлекались. Barrier не гарантирует пересечение транзакций. Карта дополнена конкретной гонкой; другие конкурентные операции остаются пробелами. JUnit XML — временный локальный артефакт, исключённый из Git.
+
+<a id="concurrent-idempotency-run-2026-11-04"></a>
+
+## Конкурентная идемпотентность — 04.11.2026
+
+**6 passed за 7.99 с**, 0 failures/errors/skipped: один новый тест одинакового ключа, один существующий конкурентный тест разных ключей и четыре последовательной идемпотентности. Один целевой запуск; **полный прогон не выполнялся**. Python 3.14.2, локальный тестовый API; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_concurrency.py tests/test_booking_idempotency.py -q --tb=short --junitxml=junit-concurrent-idempotency.xml
+```
+
+Первоначальная попытка дала шесть ошибок подготовки: локальный API не слушал localhost:8000, Docker Engine был выключен (WinError 10061). Запущен Docker Desktop и существующие hotel-booking-db-1/api-1/worker-1, без сброса БД и пересборки приложения; после readiness повторены те же шесть тестов. Итоговый XML относится к завершённому успешному запуску.
+
+[CON-002](testing-bookings.md#concurrent-idempotency): два потока через Barrier отправляют одинаковые тело, JWT и ключ. Проверены два 201, одинаковые JSON/ID/Location, один replay=false и один true, поздний replay с неизменным expires_at, единственная бронь в списках owner/admin и занятость номера. Порядок победителя не фиксируется. Ограничение: Barrier не доказывает пересечение серверных транзакций.
+
+API-клиенты, приложение, зависимости и общие фикстуры не менялись; пользовательское изменение conftest сохранено. Карта обновлена для POST /bookings; уровни остались 26 «Сценарии», 1 «Частично», 2 «Нет». Конкурентные платежи и другие гонки остаются пробелами. JUnit XML — временный локальный артефакт, исключённый из Git.
+
+<a id="booking-concurrency-run-2026-11-04"></a>
+
+## Два конкурентных бронирования — 04.11.2026
+
+**17 passed за 20.55 с**, 0 failures/errors/skipped: один новый конкурентный тест и 16 существующих случаев пересечений одним целевым запуском. **Полный прогон не выполнялся.** Python 3.14.2, локальный тестовый API; незакоммиченные изменения.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_booking_concurrency.py tests/test_booking_overlap.py -q --junitxml=junit-booking-concurrency.xml
+```
+
+CON-001: два ThreadPoolExecutor-потока, Barrier, разные пользователи/ключи, одинаковые номер/даты. Получены 201 и 409 ROOM_NOT_AVAILABLE. Проверены снимок победителя, по одной/нулю брони в пользовательских списках, ровно одна запись у admin по своему hotel_id и занятость номера. Победитель не фиксируется заранее. Подробности и ограничение синхронизации — [CON-001](testing-bookings.md#booking-concurrency).
+
+Barrier не доказывает пересечение транзакций на сервере; это не нагрузочный тест и не детерминированная проверка блокировок. API-функции, приложение, общие фикстуры, зависимости и конфигурация не менялись. Карта дополнена конкретной гонкой разных ключей; конкурентная идемпотентность/платежи остаются пробелами. JUnit XML — временный локальный артефакт, исключённый из Git.
+
 <a id="booking-payment-empty-auth-run-2026-11-04"></a>
 
 ## Бронирования и платежи без токена/с пустым Bearer — 04.11.2026

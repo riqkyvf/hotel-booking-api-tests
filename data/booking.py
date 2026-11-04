@@ -18,7 +18,7 @@ OVERLAP_CHECK_IN_OFFSET_DAYS = 2
 
 # Offsets in days from the first booking's check-in.
 OVERLAPPING_STAYS = (
-    pytest.param(0, OVERLAP_NIGHTS, id="same_dates"),
+    pytest.param(0, OVERLAP_NIGHTS, id="same_dates", marks=pytest.mark.smoke),
     pytest.param(-1, 1, id="overlap_left"),
     pytest.param(OVERLAP_NIGHTS - 1, OVERLAP_NIGHTS + 1, id="overlap_right"),
     pytest.param(1, 2, id="inside_existing"),
