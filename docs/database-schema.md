@@ -2,7 +2,7 @@
 
 PostgreSQL 17, SQLAlchemy 2.x, Alembic. Начальная ревизия: `0001_initial`. Миграция содержит зафиксированный DDL и не импортирует текущие модели. `btree_gist` создаётся миграцией для exclusion constraint.
 
-Все `id` — UUID PK, генерируются приложением. В seed UUID воспроизводимы. Все timestamps — `TIMESTAMP WITH TIME ZONE`; соединения используют UTC. Внешние ключи без каскадного удаления: история сохраняется.
+В каждой таблице `id` — первичный ключ UUID, который создаёт приложение. Метки времени хранятся как `TIMESTAMP WITH TIME ZONE`, соединения используют UTC. Внешние ключи сохраняют историю, запрещая каскадное удаление связанных записей.
 
 ## users
 
@@ -104,7 +104,7 @@ CONSTRAINT no_overlapping_bookings EXCLUDE USING gist (
 | response_body | JSONB | NOT NULL, исходный снимок |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT now() |
 
-UNIQUE `uq_idempotency(user_id, operation, key)`. Бронь и снимок сохраняются в одной транзакции. Advisory lock сериализует даже запросы, для которых запись ключа ещё не создана. Не удаляются автоматически.
+Уникальный индекс `uq_idempotency(user_id, operation, key)` ограничивает ключ в рамках пользователя и операции. Приложение сохраняет бронь и исходный ответ в одной транзакции. Блокировка по ключу упорядочивает одновременные запросы, даже если запись ключа ещё не существует. Записи ключей сохраняются до сброса БД.
 
 ## booking_status_history / payment_status_history
 
