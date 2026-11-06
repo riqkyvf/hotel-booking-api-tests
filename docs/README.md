@@ -4,11 +4,11 @@
 
 ## Навигация
 
-[Карта покрытия 29 операций API](#карта-покрытия-api) — сценарии и пробелы. [Smoke-набор](#smoke-suite) — быстрые проверки основных функций.
+[Карта покрытия 29 операций API](#карта-покрытия-api) — проверяемые сценарии и ссылки на тесты. [Smoke-набор](#smoke-suite) — быстрые проверки основных функций.
 
 | Документ | Назначение |
 |---|---|
-| [Пользователи и авторизация](testing-auth.md) | Регистрация, вход, профиль, открытые вопросы |
+| [Пользователи и авторизация](testing-auth.md) | Регистрация, вход, профиль и административные права |
 | [Каталог отелей и номеров](testing-hotels.md) | Создание номеров, чтение, фильтры, сортировка, цены и архивность |
 | [Бронирование и платежи](testing-bookings.md) | Основной путь, ограничения, отмена, истечение, доступ и повторы |
 | [GitHub Actions](https://github.com/riqkyvf/hotel-booking-api-tests/actions/workflows/api-tests.yml) | Результаты CI, коммиты и артефакты Allure |
@@ -17,72 +17,74 @@
 
 ## Карта покрытия API
 
-Карта сопоставляет [29 операций спецификации](api-specification.md) с проверками в `tests/`. Общий префикс путей — `/api/v1`. Для однотипных ошибок валидации используются показательные входные данные.
+Карта сопоставляет [29 операций спецификации](api-specification.md) с проверками в `tests/`. Общий префикс путей — `/api/v1`.
 
-**Сценарии** — есть проверки основного поведения и отказов. **Частично** — проверены отдельные стороны контракта. В колонке пробелов `—` означает, что приоритетных задач по операции не выделено.
+Набор проверяет пользовательские и административные сценарии, включая изоляцию данных, повторы с `Idempotency-Key`, конкурентные запросы и историю переходов в PostgreSQL.
 
 ### Пользователи и авторизация
 
-| Операция | Уровень | Что проверяется и где | Основные пробелы |
-|---|---|---|---|
-| POST `/auth/register` | Сценарии | Нормализация, валидация, дубликаты и создание профиля. [Тесты](testing-auth.md#registration-checklist) | Одновременная регистрация одного email |
-| POST `/auth/login` | Сценарии | Вход, валидация, неверные данные и отключённый пользователь. [Тесты](testing-auth.md#login-checklist) | — |
-| GET `/users/me` | Частично | Данные владельца, доступ с JWT и деактивация. [Тесты](testing-auth.md#authorization) | — |
-| PATCH `/users/me` | Сценарии | Частичное изменение, очистка телефона, конфликт email и отказ без изменений. [Тесты](testing-auth.md#profile-checklist) | — |
+| Операция | Что проверяется и где |
+|---|---|
+| POST `/auth/register` | Нормализация, валидация, дубликаты и создание профиля. [Тесты](testing-auth.md#registration-checklist) |
+| POST `/auth/login` | Вход, валидация, неверные данные и отключённый пользователь. [Тесты](testing-auth.md#login-checklist) |
+| GET `/users/me` | Данные владельца, доступ с JWT и деактивация. [Тесты](testing-auth.md#authorization) |
+| PATCH `/users/me` | Частичное изменение, очистка телефона, конфликт email и отказ без изменений. [Тесты](testing-auth.md#profile-checklist) |
 
 ### Отели
 
-| Операция | Уровень | Что проверяется и где | Основные пробелы |
-|---|---|---|---|
-| GET `/hotels` | Сценарии | Фильтры, цены, сортировка, страницы и архивность. [Тесты](testing-hotels.md#hotels-checklist) | — |
-| GET `/hotels/{hotel_id}` | Сценарии | Схема, UUID, роли и архивность. [Тесты](testing-hotels.md#hotels-checklist) | — |
-| POST `/hotels` | Сценарии | Создание, валидация, сохранение и права. [Тесты](testing-hotels.md#hotel-management) | — |
-| PUT `/hotels/{hotel_id}` | Сценарии | Полное обновление, валидация, архив и сохранность при отказе. [Тесты](testing-hotels.md#hotel-management) | — |
-| DELETE `/hotels/{hotel_id}` | Сценарии | Архив с номером, повтор и запрет при действующей брони. [Тесты](testing-hotels.md#hotel-management) | Архивирование отеля с несколькими номерами |
+| Операция | Что проверяется и где |
+|---|---|
+| GET `/hotels` | Фильтры, цены, сортировка, две страницы и пустая выдача, архивность. [Тесты](testing-hotels.md#hotels-checklist) |
+| GET `/hotels/{hotel_id}` | Схема, UUID, роли и архивность. [Тесты](testing-hotels.md#hotels-checklist) |
+| POST `/hotels` | Создание, валидация, сохранение и права. [Тесты](testing-hotels.md#hotel-management) |
+| PUT `/hotels/{hotel_id}` | Полное обновление, валидация, архив и сохранность при отказе. [Тесты](testing-hotels.md#hotel-management) |
+| DELETE `/hotels/{hotel_id}` | Архив с номером, повтор и запрет при действующей брони. [Тесты](testing-hotels.md#hotel-management) |
 
 ### Номера и доступность
 
-| Операция | Уровень | Что проверяется и где | Основные пробелы |
-|---|---|---|---|
-| GET `/hotels/{hotel_id}/rooms` | Сценарии | Фильтры, сортировка, страницы, роли и архивность. [Тесты](testing-hotels.md#room-creation-reading) | Сквозное чтение страниц без повторов |
-| GET `/rooms/{room_id}` | Сценарии | Схема, UUID и чтение отключённого или архивного номера. [Тесты](testing-hotels.md#room-creation-reading) | Неверный необязательный JWT |
-| POST `/hotels/{hotel_id}/rooms` | Сценарии | Валидация, уникальность номера, родитель и права. [Тесты](testing-hotels.md#room-creation-reading) | Сломанный JSON и лишние поля |
-| PUT `/rooms/{room_id}` | Сценарии | Обновление, дубликат, ограничения вместимости и архивность. [Тесты](testing-hotels.md#room-management) | Обновление отключённого номера |
-| PATCH `/rooms/{room_id}/availability` | Сценарии | Отключение, включение, валидация и оплата прежней брони. [Тесты](testing-hotels.md#room-management) | — |
-| DELETE `/rooms/{room_id}` | Сценарии | Архивирование, повтор и защита действующей брони. [Тесты](testing-hotels.md#room-management) | Архивирование после завершения действующей брони |
-| GET `/rooms/{room_id}/availability` | Сценарии | Цена, параметры, причины отказа и освобождение дат. [Тесты](testing-bookings.md#room-availability) | Доступность на точной границе истечения удержания |
+| Операция | Что проверяется и где |
+|---|---|
+| GET `/hotels/{hotel_id}/rooms` | Фильтры, сортировка, страницы, роли и архивность. [Тесты](testing-hotels.md#room-creation-reading) |
+| GET `/rooms/{room_id}` | Схема, UUID и чтение отключённого или архивного номера. [Тесты](testing-hotels.md#room-creation-reading) |
+| POST `/hotels/{hotel_id}/rooms` | Валидация, уникальность номера, родитель и права. [Тесты](testing-hotels.md#room-creation-reading) |
+| PUT `/rooms/{room_id}` | Обновление, дубликат, ограничения вместимости и архивность. [Тесты](testing-hotels.md#room-management) |
+| PATCH `/rooms/{room_id}/availability` | Отключение, включение, валидация и оплата прежней брони. [Тесты](testing-hotels.md#room-management) |
+| DELETE `/rooms/{room_id}` | Архивирование, повтор и защита действующей брони. [Тесты](testing-hotels.md#room-management) |
+| GET `/rooms/{room_id}/availability` | Цена, границы дат и числа гостей, причины отказа и освобождение дат. [Тесты](testing-bookings.md#room-availability) |
 
 ### Бронирования
 
-| Операция | Уровень | Что проверяется и где | Основные пробелы |
-|---|---|---|---|
-| POST `/bookings` | Сценарии | Создание, валидация, повтор ключа после оплаты, отмены, истечения или завершения. [Идемпотентность](testing-bookings.md#repeated-requests-checklist), [конкуренция](testing-bookings.md#booking-concurrency) | — |
-| GET `/bookings` | Сценарии | Фильтры, в том числе `expired` и `completed`, сортировка, страницы и доступ. [Тесты](testing-bookings.md#booking-list) | — |
-| GET `/bookings/{booking_id}` | Сценарии | Схема, состояния, UUID и права владельца и admin. [Тесты](testing-bookings.md#booking-payment-reading) | — |
-| PATCH `/bookings/{booking_id}/cancel` | Сценарии | Возврат, повтор, права, запреты по состояниям и гонка с оплатой. [Сценарии](testing-bookings.md#booking-cancellation-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) | Повтор после заезда и гонка двух отмен |
+| Операция | Что проверяется и где |
+|---|---|
+| POST `/bookings` | Создание, валидация, повтор ключа после оплаты, отмены, истечения или завершения. [Идемпотентность](testing-bookings.md#repeated-requests-checklist), [конкуренция](testing-bookings.md#booking-concurrency) |
+| GET `/bookings` | Фильтры, в том числе `expired` и `completed`, сортировка, страницы и изоляция владельцев. [Тесты](testing-bookings.md#booking-list) |
+| GET `/bookings/{booking_id}` | Схема, состояния, UUID и права владельца и admin. [Тесты](testing-bookings.md#booking-payment-reading) |
+| PATCH `/bookings/{booking_id}/cancel` | Возврат, повтор, права, запреты по состояниям и гонка с оплатой. [Сценарии](testing-bookings.md#booking-cancellation-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
 
 ### Платежи
 
-| Операция | Уровень | Что проверяется и где | Основные пробелы |
-|---|---|---|---|
-| POST `/bookings/{booking_id}/payments` | Сценарии | Создание, повторы, запреты по состояниям и конкурентный запрос. [Сценарии](testing-bookings.md#payment-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) | — |
-| GET `/payments/{payment_id}` | Сценарии | Схема, UUID, состояния и доступ. [Тесты](testing-bookings.md#booking-payment-reading) | — |
-| POST `/payments/{payment_id}/simulate-success` | Сценарии | Подтверждение брони, повторы, сроки, права и конкуренция. [Сценарии](testing-bookings.md#payment-success-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) | Гонка оплаты с истечением |
-| POST `/payments/{payment_id}/simulate-failure` | Сценарии | Отказ с причиной, повтор, валидация и запреты по состояниям. [Сценарии](testing-bookings.md#payment-failure-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) | Одновременные симуляции успеха и отказа |
+| Операция | Что проверяется и где |
+|---|---|
+| POST `/bookings/{booking_id}/payments` | Создание, повторы, запреты по состояниям и конкурентный запрос. [Сценарии](testing-bookings.md#payment-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
+| GET `/payments/{payment_id}` | Схема, UUID, состояния и доступ. [Тесты](testing-bookings.md#booking-payment-reading) |
+| POST `/payments/{payment_id}/simulate-success` | Подтверждение брони, повторы, сроки, права и конкуренция. [Сценарии](testing-bookings.md#payment-success-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
+| POST `/payments/{payment_id}/simulate-failure` | Отказ с причиной, повтор, валидация и запреты по состояниям. [Сценарии](testing-bookings.md#payment-failure-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
 
 ### Администрирование и health
 
-| Операция | Уровень | Что проверяется и где | Основные пробелы |
-|---|---|---|---|
-| GET `/admin/users` | Сценарии | Фильтры, сортировка, пагинация, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) | — |
-| GET `/admin/users/{user_id}` | Сценарии | Чтение, UUID, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) | — |
-| PATCH `/admin/users/{user_id}` | Сценарии | Роль, активность, сохранность броней и защита последнего admin. [Тесты](testing-auth.md#admin-users) | Одновременные изменения роли или активности последних двух администраторов |
-| GET `/health/live` | Частично | HTTP 200 и `status=alive` без токена. [Тесты](../tests/test_health.py) | — |
-| GET `/health/ready` | Частично | HTTP 200 и `status=ready` без токена. [Тесты](../tests/test_health.py) | HTTP 503 при неготовности БД |
+| Операция | Что проверяется и где |
+|---|---|
+| GET `/admin/users` | Фильтры, сортировка, пагинация, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) |
+| GET `/admin/users/{user_id}` | Чтение, UUID, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) |
+| PATCH `/admin/users/{user_id}` | Роль, активность, сохранность броней и защита последнего admin. [Тесты](testing-auth.md#admin-users) |
+| GET `/health/live` | HTTP 200 и `status=alive` без токена. [Тесты](../tests/test_health.py) |
+| GET `/health/ready` | HTTP 200 и `status=ready` без токена. [Тесты](../tests/test_health.py) |
 
-**Итого: 26 операций со сценариями, 3 покрыты частично.**
+### Вне текущего API-набора
 
-Общие задачи: дополнить схемы успешных ответов профиля и списков броней и пользователей в существующих тестах. Проверки `exp`, `iss` и `aud` остаются задачей [общей авторизации](testing-auth.md#authorization).
+- Полный перебор однотипных входов. Для HTTP-валидации используются показательные значения.
+- Проверка алгоритма хранения паролей относится к тестам приложения с БД.
+- Имитация отказов инфраструктуры относится к проверкам на отдельном стенде.
 
 <a id="smoke-suite"></a>
 

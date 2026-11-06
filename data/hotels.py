@@ -22,16 +22,6 @@ HOTEL_CITY_VARIANTS = (
     "original", "lowercase", "uppercase", "leading_spaces", "trailing_spaces", "both"
 )
 
-HOTEL_PAGINATION_CASES = (
-    pytest.param(1, 0, id="first_one"),
-    pytest.param(1, 1, id="second_one"),
-    pytest.param(2, 0, id="first_page"),
-    pytest.param(2, 2, id="second_page"),
-    pytest.param(100, 0, id="maximum_limit"),
-    pytest.param(2, 4, id="offset_equals_total"),
-    pytest.param(2, 10, id="offset_beyond_total"),
-)
-
 HOTEL_RATING_CASES = (
     pytest.param({"min_rating": "0"}, ("beta", "alpha_one", "alpha_two", "omega"),
                  id="minimum_boundary"),

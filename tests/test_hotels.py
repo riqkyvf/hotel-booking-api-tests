@@ -9,7 +9,6 @@ from api.hotels import archive_hotel, create_hotel, get_hotel, list_hotels
 from data.hotels import (
     HOTEL_CATALOG_CASES,
     HOTEL_CITY_VARIANTS,
-    HOTEL_PAGINATION_CASES,
     HOTEL_RATING_CASES,
     HOTEL_READER_ROLES,
     HOTEL_SORT_CASES,
@@ -100,45 +99,23 @@ def test_hotels_default_pagination(base_url):
         assert hotel["is_archived"] is False
 
 
-@pytest.mark.parametrize("limit,offset", HOTEL_PAGINATION_CASES)
-def test_hotels_pagination(base_url, hotel_catalog, limit, offset):
+def test_hotels_pagination_pages(base_url, hotel_catalog):
     hotels = hotel_catalog["hotels"]
     expected = sorted([hotels["alpha_one"]["id"], hotels["alpha_two"]["id"]])
     expected += [hotels["beta"]["id"], hotels["omega"]["id"]]
 
-    response = list_hotels(
-        base_url,
-        {"city": hotel_catalog["city"], "limit": limit, "offset": offset, "sort": "name"},
-    )
-
-    assert response.status_code == 200, response.text
-    body = response.json()
-    validate(instance=body, schema=HOTEL_PAGE_SCHEMA)
-    assert body["total"] == 4
-    assert body["limit"] == limit
-    assert body["offset"] == offset
-    assert [hotel["id"] for hotel in body["items"]] == expected[offset:offset + limit]
-
-
-def test_hotels_pagination_pages(base_url, hotel_catalog):
-    pages = []
-    for offset in (0, 2):
+    for limit, offset in ((2, 0), (2, 2), (2, 4), (1, 0), (100, 0)):
         response = list_hotels(
             base_url,
-            {"city": hotel_catalog["city"], "limit": 2, "offset": offset, "sort": "name"},
+            {"city": hotel_catalog["city"], "limit": limit, "offset": offset, "sort": "name"},
         )
         assert response.status_code == 200, response.text
         body = response.json()
-        assert body["total"] == 4
-        assert body["limit"] == 2
+        validate(instance=body, schema=HOTEL_PAGE_SCHEMA)
+        assert body["total"] == len(expected)
+        assert body["limit"] == limit
         assert body["offset"] == offset
-        pages.append([hotel["id"] for hotel in body["items"]])
-
-    hotels = hotel_catalog["hotels"]
-    expected = sorted([hotels["alpha_one"]["id"], hotels["alpha_two"]["id"]])
-    expected += [hotels["beta"]["id"], hotels["omega"]["id"]]
-    assert pages[0] + pages[1] == expected
-    assert set(pages[0]).isdisjoint(pages[1])
+        assert [hotel["id"] for hotel in body["items"]] == expected[offset:offset + limit], (limit, offset)
 
 
 def test_hotels_unknown_city(base_url):

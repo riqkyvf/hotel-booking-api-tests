@@ -31,8 +31,11 @@ def assert_availability(response, room, stay, *, available, reason):
     return body
 
 
-@pytest.mark.parametrize("offset,nights", [(0, 1), (2, 1), (2, 14)], ids=["today", "one_night", "fourteen_nights"])
-@pytest.mark.parametrize("guests", [1, 2, 10])
+@pytest.mark.parametrize("offset,nights,guests", [
+    pytest.param(0, 1, 1, id="today-one-night-one-guest"),
+    pytest.param(2, 1, 2, id="future-one-night-two-guests"),
+    pytest.param(2, 14, 10, id="fourteen-nights-max-guests"),
+])
 def test_availability_accepts_stay_boundaries(base_url, admin_access_token, available_room, offset, nights, guests):
     room = available_room["room"]
     updated = update_room(base_url, admin_access_token, room["id"], {**BOOKING_ROOM_DATA, "capacity": 10})

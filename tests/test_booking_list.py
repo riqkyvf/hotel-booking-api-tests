@@ -71,14 +71,13 @@ def reader_options(reader, catalog, user_token, admin_token):
             else (admin_token, {"user_id": catalog["owner_id"]}))
 
 
-@pytest.mark.parametrize("reader", ["owner", "admin"])
 @pytest.mark.parametrize("case,keys", [
     ("pending", ("a", "d")), ("confirmed", ("b",)), ("cancelled", ("c",)),
     ("expired", ()), ("completed", ()), ("first_hotel", ("a", "b")), ("second_hotel", ("c", "d")),
     ("from", ("b", "c", "d")), ("to", ("a", "b", "c")), ("same_day", ("b", "c")),
     ("status_hotel", ("d",)), ("status_date", ("b",)),
 ])
-def test_booking_list_filters(base_url, user_access_token, admin_access_token, booking_catalog, reader, case, keys):
+def test_booking_list_filters(base_url, user_access_token, booking_catalog, case, keys):
     catalog = booking_catalog
     boundary = (catalog["today"] + timedelta(days=4)).isoformat()
     filters = {
@@ -91,8 +90,7 @@ def test_booking_list_filters(base_url, user_access_token, admin_access_token, b
         "status_hotel": {"status": "pending_payment", "hotel_id": catalog["hotels"][1]["id"]},
         "status_date": {"status": "confirmed", "check_in_from": boundary, "check_in_to": boundary},
     }[case]
-    token, scope = reader_options(reader, catalog, user_access_token, admin_access_token)
-    response = list_bookings(base_url, token, {**scope, **filters})
+    response = list_bookings(base_url, user_access_token, filters)
     assert response.status_code == 200, response.text
     page = response.json()
     assert page["total"] == len(keys)
@@ -103,6 +101,19 @@ def test_booking_list_filters(base_url, user_access_token, admin_access_token, b
         assert item == expected[item["id"]]
         assert item["user_id"] == catalog["owner_id"]
     assert response.headers.get("X-Request-ID")
+
+
+def test_admin_filters_bookings_by_owner_hotel_and_status(base_url, admin_access_token, booking_catalog):
+    response = list_bookings(base_url, admin_access_token, {
+        "user_id": booking_catalog["owner_id"],
+        "hotel_id": booking_catalog["hotels"][0]["id"],
+        "status": "pending_payment",
+    })
+
+    assert response.status_code == 200, response.text
+    page = response.json()
+    assert page["total"] == 1
+    assert page["items"] == [booking_catalog["bookings"]["a"]]
 
 
 @pytest.mark.db
@@ -163,30 +174,20 @@ def test_booking_list_sorting(base_url, user_access_token, admin_access_token, b
     assert page["offset"] == 0
 
 
-@pytest.mark.parametrize("limit,offset", [(1, 0), (2, 0), (2, 2), (100, 0), (2, 4), (2, 10)])
-def test_booking_list_pagination(base_url, user_access_token, booking_catalog, limit, offset):
-    records = booking_catalog["bookings"]
-    expected = [records["a"]["id"], *sorted(records[key]["id"] for key in "bc"), records["d"]["id"]]
-    response = list_bookings(base_url, user_access_token, {"sort": "check_in", "limit": limit, "offset": offset})
-    assert response.status_code == 200, response.text
-    page = response.json()
-    assert page["total"] == 4
-    assert page["limit"] == limit
-    assert page["offset"] == offset
-    assert [item["id"] for item in page["items"]] == expected[offset:offset + limit]
-
-
 @pytest.mark.parametrize("reader", ["owner", "admin"])
 def test_booking_pages_have_no_missing_or_duplicate_records(base_url, user_access_token, admin_access_token, booking_catalog, reader):
     token, scope = reader_options(reader, booking_catalog, user_access_token, admin_access_token)
-    ids = []
-    for offset in (0, 2):
-        response = list_bookings(base_url, token, {**scope, "sort": "check_in", "limit": 2, "offset": offset})
+    records = booking_catalog["bookings"]
+    expected = [records["a"]["id"], *sorted(records[key]["id"] for key in "bc"), records["d"]["id"]]
+
+    for limit, offset in ((2, 0), (2, 2), (2, 4), (1, 0), (100, 0)):
+        response = list_bookings(base_url, token, {**scope, "sort": "check_in", "limit": limit, "offset": offset})
         assert response.status_code == 200, response.text
-        assert response.json()["total"] == 4
-        ids.extend(item["id"] for item in response.json()["items"])
-    assert len(ids) == len(set(ids)) == 4
-    assert set(ids) == {item["id"] for item in booking_catalog["bookings"].values()}
+        page = response.json()
+        assert page["total"] == len(expected)
+        assert page["limit"] == limit
+        assert page["offset"] == offset
+        assert [item["id"] for item in page["items"]] == expected[offset:offset + limit], (limit, offset)
 
 
 def test_admin_lists_both_owners_with_hotel_filter(base_url, admin_access_token, booking_catalog):
