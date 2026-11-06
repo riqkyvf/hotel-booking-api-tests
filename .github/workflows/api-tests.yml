@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: riqkyvf/hotel-booking-api
-          ref: a515cdb5deffac1106839aa78d3e3bb1171dbe51
+          ref: 0d8396f38c8a7b727648585e33b3d34fe54652ab
           path: hotel-api
           persist-credentials: false
 
