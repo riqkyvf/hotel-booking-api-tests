@@ -3,6 +3,8 @@ name: API tests
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       suite:
@@ -26,6 +28,7 @@ jobs:
 
     steps:
       - name: Check out tests
+        id: tests
         uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -88,6 +91,7 @@ jobs:
           curl --fail --silent --show-error --max-time 10 "$API_BASE_URL/health/ready"
 
       - name: Run pytest
+        id: regression
         run: |
           case "$SUITE" in
             smoke) markers=smoke ;;
@@ -98,6 +102,7 @@ jobs:
             --junitxml=artifacts/junit.xml --alluredir=artifacts/allure-results --allure-no-capture
 
       - name: Test last active administrator
+        id: last_admin
         if: ${{ !cancelled() && env.SUITE == 'full' && steps.stand.outcome == 'success' }}
         run: python scripts/run_last_admin_tests.py --reuse-ci-stand
 
@@ -114,6 +119,7 @@ jobs:
           docker compose -f hotel-api/compose.yaml logs --no-color > artifacts/compose.log
 
       - name: Upload test artifacts
+        id: artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
@@ -125,6 +131,17 @@ jobs:
             artifacts/compose.log
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Write test summary
+        if: ${{ !cancelled() && steps.tests.outcome == 'success' }}
+        env:
+          TESTS_COMMIT: ${{ steps.tests.outputs.commit }}
+          API_COMMIT: ${{ steps.api.outputs.commit }}
+          STAND_OUTCOME: ${{ steps.stand.outcome }}
+          REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
+          LAST_ADMIN_OUTCOME: ${{ steps.last_admin.outcome }}
+          ARTIFACT_URL: ${{ steps.artifacts.outputs.artifact-url }}
+        run: python scripts/write_ci_summary.py
 
       - name: Remove temporary stand
         if: ${{ always() && steps.api.outcome == 'success' }}
