@@ -1,0 +1,126 @@
+name: API tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Test suite
+        type: choice
+        options: [smoke, full]
+        default: full
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      API_BASE_URL: http://127.0.0.1:8000/api/v1
+      API_ADMIN_EMAIL: admin@example.com
+      SUITE: ${{ inputs.suite || 'smoke' }}
+
+    steps:
+      - name: Check out tests
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check out API
+        id: api
+        uses: actions/checkout@v7
+        with:
+          repository: riqkyvf/hotel-booking-api
+          ref: a515cdb5deffac1106839aa78d3e3bb1171dbe51
+          path: hotel-api
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14.2'
+          cache: pip
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Configure disposable test environment
+        run: |
+          mkdir -p artifacts/allure-results
+          db_password=$(openssl rand -hex 16)
+          admin_password=$(openssl rand -hex 16)
+          jwt_key=$(openssl rand -hex 32)
+          for value in "$db_password" "$admin_password" "$jwt_key"; do
+            echo "::add-mask::$value"
+          done
+          {
+            echo "POSTGRES_PASSWORD=$db_password"
+            echo "SEED_PASSWORD=$admin_password"
+            echo "API_ADMIN_PASSWORD=$admin_password"
+            echo "JWT_SECRET=$jwt_key"
+            echo "TEST_DATABASE_URL=postgresql://hotel:$db_password@127.0.0.1:5433/hotel"
+          } >> "$GITHUB_ENV"
+          {
+            echo "Suite=$SUITE"
+            echo "Tests.commit=$(git rev-parse HEAD)"
+            echo "API.commit=$(git -C hotel-api rev-parse HEAD)"
+            echo "Runtime=$(python --version)"
+          } > artifacts/allure-results/environment.properties
+
+      - name: Start API and wait for readiness
+        working-directory: hotel-api
+        run: |
+          docker compose up --build --wait --wait-timeout 180
+          curl --fail --silent --show-error --max-time 10 "$API_BASE_URL/health/ready"
+
+      - name: Run pytest
+        run: |
+          case "$SUITE" in
+            smoke) markers=smoke ;;
+            full) markers='not isolated_admin' ;;
+            *) echo "Unknown test suite: $SUITE" >&2; exit 2 ;;
+          esac
+          python -m pytest -m "$markers" -q --tb=short --durations=15 \
+            --junitxml=artifacts/junit.xml --alluredir=artifacts/allure-results --allure-no-capture
+
+      - name: Generate Allure HTML
+        if: ${{ !cancelled() && hashFiles('artifacts/allure-results/*-result.json') != '' }}
+        run: |
+          npm exec --yes --package=allure-commandline@2.46.1 -- \
+            allure generate artifacts/allure-results --output artifacts/allure-report --single-file
+
+      - name: Collect Compose logs
+        if: ${{ !cancelled() && steps.api.outcome == 'success' }}
+        run: |
+          mkdir -p artifacts
+          docker compose -f hotel-api/compose.yaml logs --no-color > artifacts/compose.log
+
+      - name: Upload test artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-tests-${{ env.SUITE }}
+          path: |
+            artifacts/allure-report/index.html
+            artifacts/junit.xml
+            artifacts/compose.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Remove temporary stand
+        if: ${{ always() && steps.api.outcome == 'success' }}
+        working-directory: hotel-api
+        run: docker compose down --volumes

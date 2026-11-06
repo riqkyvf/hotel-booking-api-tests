@@ -167,16 +167,22 @@ Copy-Item .env.example .env
 
 Метка `db` управляет выбором тестов. При обычном полном запуске отсутствие `TEST_DATABASE_URL` приводит к ошибке подготовки SQL-теста, а не к его пропуску. SQL меняет только `expires_at` созданной тестом брони; статусы меняет приложение. Очистка БД не выполняется.
 
-### Запуск в CI
+### Запуск в GitHub Actions
 
-Файл `.env` в CI не нужен: задайте `API_BASE_URL` переменной окружения, а `API_ADMIN_EMAIL` и `API_ADMIN_PASSWORD` — настройками/секретами CI. Для полного прогона также задайте `TEST_DATABASE_URL`: при pytest на машине CI используется опубликованный порт БД, внутри Compose — имя сервиса и порт 5432. API и тесты должны обращаться к одной временной БД. Для локальной проверки другого адреса в PowerShell:
+[API tests](.github/workflows/api-tests.yml) запускает smoke на pull request в `main`. Для ручного запуска откройте **Actions → API tests → Run workflow** и выберите `smoke` или `full`. Режим `full` включает DB-тесты. Три проверки с меткой `isolated_admin` запускаются отдельно по инструкции выше.
+
+Каждый запуск скачивает приложение по коммиту, указанному в шаге **Check out API**. Compose поднимает отдельный PostgreSQL, выполняет миграции и seed, запускает API и worker. Workflow ждёт готовности стенда и удаляет его том после прогона. Пароли и ключ подписи генерируются для этого стенда, поэтому настройки секретов репозитория не требуются.
+
+В завершённом запуске скачайте артефакт `api-tests-smoke` или `api-tests-full` и откройте `allure-report/index.html` из распакованного архива. Рядом лежат `junit.xml` и `compose.log`. Отчёт и JUnit сохраняются после падений тестов, если pytest успел записать результаты. При сбое запуска стенда для диагностики служит `compose.log`. Артефакты хранятся 14 дней.
+
+Для локального Allure-отчёта установите зависимости из `requirements.txt`. С запущенным стендом выполните smoke и сгенерируйте HTML. Для второй команды нужны Node.js и Java.
 
 ```powershell
-$env:API_BASE_URL = "http://localhost:8000/api/v1"
-.\.venv\Scripts\python.exe -m pytest -v --junitxml=junit.xml
+.\.venv\Scripts\python.exe -m pytest -m smoke -q --alluredir=artifacts/allure-results --clean-alluredir
+npm.cmd exec --yes --package=allure-commandline@2.46.1 -- allure generate artifacts/allure-results --output artifacts/allure-report --single-file --clean
 ```
 
-Перед прогоном поднимите отдельный стенд и дождитесь HTTP 200 от `/api/v1/health/ready`. JUnit XML можно сохранить как артефакт CI; сам файл исключён из Git. Workflow пока не добавлен. Для воспроизводимости результата записывайте версию Python, commit тестов и commit/образ приложения. Предыдущий результат в чек-листе без версии приложения не определяет совместимость с любой его версией.
+Откройте `artifacts/allure-report/index.html` в браузере. Папка `artifacts/` исключена из Git.
 
 ## Как поддерживать тесты
 
