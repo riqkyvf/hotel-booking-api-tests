@@ -24,8 +24,9 @@ def ordinary_user_profile(base_url, user_access_token):
 
 
 @pytest.mark.smoke
+@pytest.mark.usefixtures("ordinary_user_profile")
 @allure.title("Обычный пользователь не может создать отель")
-def test_user_cannot_create_hotel(base_url, user_access_token, ordinary_user_profile):
+def test_user_cannot_create_hotel(base_url, user_access_token):
     city = f"Forbidden_{uuid4().hex}"
     payload = {**HOTEL_TEMPLATE, "city": city}
     before = list_hotels(base_url, {"city": city})
@@ -42,8 +43,9 @@ def test_user_cannot_create_hotel(base_url, user_access_token, ordinary_user_pro
 
 
 @pytest.mark.parametrize("operation", ["update", "archive"])
+@pytest.mark.usefixtures("ordinary_user_profile")
 def test_user_cannot_modify_hotel(
-    base_url, user_access_token, ordinary_user_profile, available_room, operation,
+    base_url, user_access_token, available_room, operation,
 ):
     hotel = available_room["hotel"]
     room = available_room["room"]
@@ -63,9 +65,8 @@ def test_user_cannot_modify_hotel(
     assert saved_room.json() == room
 
 
-def test_user_cannot_create_room(
-    base_url, user_access_token, ordinary_user_profile, available_room,
-):
+@pytest.mark.usefixtures("ordinary_user_profile")
+def test_user_cannot_create_room(base_url, user_access_token, available_room):
     hotel = available_room["hotel"]
     room = available_room["room"]
     payload = {**BOOKING_ROOM_DATA, "room_number": "102"}
@@ -83,8 +84,9 @@ def test_user_cannot_create_room(
 
 
 @pytest.mark.parametrize("operation", ["update", "disable", "archive"])
+@pytest.mark.usefixtures("ordinary_user_profile")
 def test_user_cannot_modify_room(
-    base_url, user_access_token, ordinary_user_profile, available_room, operation,
+    base_url, user_access_token, available_room, operation,
 ):
     room = available_room["room"]
     if operation == "update":

@@ -165,9 +165,8 @@ def test_hotels_city_requires_full_match(base_url, hotel_catalog):
 
 
 @pytest.mark.parametrize("params,low,high,minimum_total", HOTEL_UNSCOPED_RATING_CASES)
-def test_hotels_rating_without_city(
-    base_url, hotel_catalog, params, low, high, minimum_total
-):
+@pytest.mark.usefixtures("hotel_catalog")
+def test_hotels_rating_without_city(base_url, params, low, high, minimum_total):
     response = list_hotels(base_url, {**params, "limit": 100})
 
     assert response.status_code == 200, response.text

@@ -17,7 +17,7 @@ from tests.assertions import assert_api_error
 def booking_catalog(base_url, admin_access_token, registered_user, user_access_token, second_user):
     """Four owner bookings across two hotels, plus another user's booking in the first hotel."""
     hotels, rooms = [], []
-    for index, price in enumerate(("1000.00", "2000.00")):
+    for price in ("1000.00", "2000.00"):
         created = create_hotel(base_url, admin_access_token, {**HOTEL_TEMPLATE, "city": f"BookingList_{uuid4().hex}"})
         assert created.status_code == 201, created.text
         hotels.append(created.json())

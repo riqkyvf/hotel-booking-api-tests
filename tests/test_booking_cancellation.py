@@ -59,7 +59,7 @@ def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, p
 @allure.title("Отмена освобождает номер для другого пользователя ({param_id})")
 def test_cancellation_releases_room_for_another_user(
     base_url, stay_dates, booking_to_cancel, user_access_token, second_user,
-    payment_status, expected_payment_status,
+    expected_payment_status,
 ):
     booking = booking_to_cancel["booking"]
     room_id = booking["room_id"]
@@ -131,7 +131,7 @@ def test_cancellation_releases_room_for_another_user(
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
 def test_repeated_cancellation_preserves_booking_and_payment(
     base_url, stay_dates, booking_to_cancel, user_access_token,
-    payment_status, expected_payment_status,
+    expected_payment_status,
 ):
     booking = booking_to_cancel["booking"]
     payment = booking_to_cancel["payment"]

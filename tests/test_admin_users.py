@@ -49,7 +49,8 @@ def test_admin_list_filters_include_matching_user(base_url, admin_access_token, 
 
 
 @pytest.mark.parametrize("sort", [None, "created_at", "-created_at", "email", "-email"])
-def test_admin_list_sorting(base_url, admin_access_token, registered_user, sort):
+@pytest.mark.usefixtures("registered_user")
+def test_admin_list_sorting(base_url, admin_access_token, sort):
     params = {"limit": 100}
     if sort is not None:
         params["sort"] = sort
@@ -65,7 +66,8 @@ def test_admin_list_sorting(base_url, admin_access_token, registered_user, sort)
             assert left["id"] < right["id"]
 
 
-def test_admin_list_pagination(base_url, admin_access_token, registered_user):
+@pytest.mark.usefixtures("registered_user")
+def test_admin_list_pagination(base_url, admin_access_token):
     baseline = list_users_as_admin(base_url, admin_access_token, {"limit": 4, "sort": "email"})
     assert baseline.status_code == 200, baseline.text
     expected = baseline.json()
