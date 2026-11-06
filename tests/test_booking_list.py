@@ -9,6 +9,7 @@ from api.payments import create_payment, simulate_payment_success
 from api.rooms import create_room
 from data.booking import BOOKING_ROOM_DATA
 from data.hotels import HOTEL_TEMPLATE
+from db import move_booking_expiry_to_past
 from tests.assertions import assert_api_error
 
 
@@ -102,6 +103,31 @@ def test_booking_list_filters(base_url, user_access_token, admin_access_token, b
         assert item == expected[item["id"]]
         assert item["user_id"] == catalog["owner_id"]
     assert response.headers.get("X-Request-ID")
+
+
+@pytest.mark.db
+@pytest.mark.parametrize("reader", ["owner", "admin"])
+def test_booking_list_returns_expired_booking(
+    base_url, database_url, user_access_token, admin_access_token, booking_catalog, reader,
+):
+    original = booking_catalog["bookings"]["a"]
+    expires_at = move_booking_expiry_to_past(database_url, original["id"], original["user_id"])
+    token, scope = reader_options(reader, booking_catalog, user_access_token, admin_access_token)
+
+    response = list_bookings(base_url, token, {**scope, "status": "expired"})
+
+    assert response.status_code == 200, response.text
+    assert response.headers.get("X-Request-ID")
+    page = response.json()
+    assert page["total"] == 1
+    assert [item["id"] for item in page["items"]] == [original["id"]]
+    expired = page["items"][0]
+    assert expired["status"] == "expired"
+    assert datetime.fromisoformat(expired["expires_at"]) == expires_at
+
+    saved = get_booking(base_url, token, original["id"])
+    assert saved.status_code == 200, saved.text
+    assert saved.json() == expired
 
 
 @pytest.mark.parametrize("reader", ["owner", "admin"])

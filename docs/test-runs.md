@@ -5,6 +5,18 @@
 - [Проверка упрощения читаемости — 03.11.2026](#readability-cleanup-run-2026-11-03)
 - [Полный прогон после точечного рефакторинга](#architecture-refactor-run-2026-11-03)
 
+<a id="booking-list-expired-run-2026-11-06"></a>
+
+## Фильтр списка по истёкшей брони — 06.11.2026
+
+**8 passed за 17.80 с**, 20 deselected. Два новых случая для владельца и администратора, четыре проверки пустых выборок expired/completed, один сценарий истечения и одна проверка списка completed.
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest 'tests/test_booking_list.py::test_booking_list_returns_expired_booking' 'tests/test_booking_list.py::test_booking_list_filters' tests/test_booking_expiration.py 'tests/test_booking_completion.py::test_confirmed_stay_completes_on_checkout_day[list]' -k 'expired or completed or checkout_day' -q --tb=short --junitxml=junit-booking-list-expired.xml
+```
+
+[BL-010](testing-bookings.md#booking-list) использует существующую SQL-подготовку expires_at и каталог броней. Фильтр возвращает точный ID и total=1, а запись совпадает с чтением по ID.
+
 <a id="smoke-run-2026-11-04"></a>
 
 ## Выделение smoke — 04.11.2026
