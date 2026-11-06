@@ -19,77 +19,70 @@
 
 Карта сопоставляет [29 операций спецификации](api-specification.md) с проверками в `tests/`. Общий префикс путей — `/api/v1`.
 
-Обозначения:
-
-- **Сценарии** — есть развёрнутый набор позитивных и негативных проверок операции или её бизнес-переходов. Это не означает полного покрытия контракта.
-- **Частично** — проверяются отдельные ответы, права или шаги сквозного сценария; существенные части операции ещё не проверены.
-- **Подготовка** — основной сценарий операции создаёт нужное состояние для проверки другой функции продукта; успех подготовки проверяется, самостоятельной матрицы операции нет; отдельные общие проверки авторизации отмечены в строке.
-- **Нет** — автоматических вызовов и проверок операции в наборе не найдено. Инструкция ручного вызова в README не считается автотестом.
+**Сценарии** — есть проверки основного поведения и отказов. **Частично** — проверены отдельные стороны контракта. В колонке пробелов `—` означает, что приоритетных задач по операции не выделено.
 
 ### Пользователи и авторизация
 
 | Операция | Уровень | Что проверяется и где | Основные пробелы |
 |---|---|---|---|
-| POST `/auth/register` | Сценарии | [Регистрация](../tests/test_registration.py), [сквозные проверки](../tests/test_auth_flow.py): поля, типы, границы, ASCII, нормализация, дубликаты, ошибки, отсутствие секретов | Argon2 и запись в БД, часть ID/timestamps и уточнений из [карты сценариев](testing-auth.md#registration-checklist) |
-| POST `/auth/login` | Сценарии | [Вход](../tests/test_login.py), [сквозные проверки](../tests/test_auth_flow.py): успех, неверные данные, отключение, нормализация, валидация, формат токена в ответе и ошибки | X-Request-ID успешного login; содержимое JWT и его проверка на защищённых ручках не доказываются непустым access_token |
-| GET `/users/me` | Частично | [Сквозные проверки](../tests/test_auth_flow.py), [профиль](../tests/test_profile.py): данные текущего пользователя, чтение после изменений, отключение/включение; [авторизация](../tests/test_authorization.py): отсутствие, пустой/сломанный токен и повреждённая подпись | Истечение и неверные iss/aud отложены; полный контракт успешного ответа |
-| PATCH `/users/me` | Сценарии | [Профиль](../tests/test_profile.py): изменение и очистка полей, нормализация, границы и типы, конфликт email, лишние поля, отсутствие частичных изменений, доступ | Истёкший JWT, подпись/iss/aud, конкуренция; полный контракт ID/timestamps |
+| POST `/auth/register` | Сценарии | Нормализация, валидация, дубликаты и создание профиля. [Тесты](testing-auth.md#registration-checklist) | Одновременная регистрация одного email |
+| POST `/auth/login` | Сценарии | Вход, валидация, неверные данные и отключённый пользователь. [Тесты](testing-auth.md#login-checklist) | — |
+| GET `/users/me` | Частично | Данные владельца, доступ с JWT и деактивация. [Тесты](testing-auth.md#authorization) | — |
+| PATCH `/users/me` | Сценарии | Частичное изменение, очистка телефона, конфликт email и отказ без изменений. [Тесты](testing-auth.md#profile-checklist) | — |
 
 ### Отели
 
 | Операция | Уровень | Что проверяется и где | Основные пробелы |
 |---|---|---|---|
-| GET `/hotels` | Сценарии | [Каталог](../tests/test_hotels.py), [цены](../tests/test_hotel_prices.py): фильтры и сочетания, сортировка и UUID при равенстве, пагинация, архивность, роли, неверные query | Дополнительные сочетания некорректных параметров; полный список проверок — в [сценариях каталога](testing-hotels.md) |
-| GET `/hotels/{hotel_id}` | Сценарии | [Каталог](../tests/test_hotels.py): детали, роли, архивность, неизвестный и неверный UUID, схема ответа | Дополнительные проверки формата временных полей; не заявляется исчерпывающая матрица всех вариантов ответа |
-| POST `/hotels` | Сценарии | [Управление отелями](../tests/test_hotel_management.py): создание, границы всех полей и рейтинга, обязательность/null/неверные значения, лишние поля и JSON-тела, сохранение через GET; [права](../tests/test_admin_operations_access.py), [JWT](../tests/test_authorization.py) | Дополнительные комбинации типов, пробельные/Unicode-значения и нормализация полей, полный контракт ID/timestamps |
-| PUT `/hotels/{hotel_id}` | Сценарии | [Управление отелями](../tests/test_hotel_management.py): полное обновление, границы/валидация/JSON, сохранность при отказе, сохранение ID/created_at и номера, RESOURCE_ARCHIVED, неверный/неизвестный ID, 401 без/с неверным токеном; [403 user](../tests/test_admin_operations_access.py) | Дополнительные комбинации типов и нормализации, полный контракт timestamps, конкурентные изменения |
-| DELETE `/hotels/{hotel_id}` | Сценарии | [Управление отелями](../tests/test_hotel_management.py): архивирование с номером, публичное скрытие и admin-чтение, повтор DELETE без изменений, ACTIVE_BOOKINGS_EXIST для pending_payment/confirmed с сохранностью всех ресурсов, неизвестный/неверный ID, 401; [403 user](../tests/test_admin_operations_access.py) | Несколько номеров с разными состояниями, архивирование после истечения/отмены/завершения, конкурентные операции |
+| GET `/hotels` | Сценарии | Фильтры, цены, сортировка, страницы и архивность. [Тесты](testing-hotels.md#hotels-checklist) | — |
+| GET `/hotels/{hotel_id}` | Сценарии | Схема, UUID, роли и архивность. [Тесты](testing-hotels.md#hotels-checklist) | — |
+| POST `/hotels` | Сценарии | Создание, валидация, сохранение и права. [Тесты](testing-hotels.md#hotel-management) | — |
+| PUT `/hotels/{hotel_id}` | Сценарии | Полное обновление, валидация, архив и сохранность при отказе. [Тесты](testing-hotels.md#hotel-management) | — |
+| DELETE `/hotels/{hotel_id}` | Сценарии | Архив с номером, повтор и запрет при действующей брони. [Тесты](testing-hotels.md#hotel-management) | Архивирование отеля с несколькими номерами |
 
 ### Номера и доступность
 
 | Операция | Уровень | Что проверяется и где | Основные пробелы |
 |---|---|---|---|
-| GET `/hotels/{hotel_id}/rooms` | Сценарии | [Чтение номеров](../tests/test_rooms.py): ценовые фильтры, min_capacity и type, сочетания, все поля сортировки в обе стороны и UUID при равенстве, пагинация, роли, отключённые/архивные номера и родитель, ошибки query/ID | Дополнительные сочетания query, все варианты типов query, сквозное чтение нескольких страниц без повторов |
-| GET `/rooms/{room_id}` | Сценарии | [Чтение номеров](../tests/test_rooms.py): схема с форматом UUID/timestamps, поля отключённого номера для guest/user/admin, архивный номер и родитель, admin-доступ к архиву, неизвестный/неверный ID | Дополнительные варианты неверных UUID, точный контракт ответа при некорректном необязательном JWT |
-| POST `/hotels/{hotel_id}/rooms` | Сценарии | [Создание](../tests/test_room_creation.py): все типы, границы полей, обязательность/null/неверные значения, дубликат и уникальность внутри отеля, сохранение через GET, неизвестный/архивный родитель; [права](../tests/test_admin_operations_access.py): 403 user | Отсутствующий/повреждённый JWT, неизвестные поля и тела не-объект/сломанный JSON, дополнительные комбинации типов и room_number с разным регистром |
-| PUT `/rooms/{room_id}` | Сценарии | [Управление номерами](../tests/test_room_management.py): все поля и границы, обязательность/типы/null/лишние поля/JSON, сохранение ID/hotel_id/created_at, дубликат номера без частичного изменения, RESOURCE_ARCHIVED для архивного номера/родителя, ID и 401; [бизнес-ограничения](../tests/test_room_booking_integrity.py), [403 user](../tests/test_admin_operations_access.py) | Дополнительные комбинации типов, успешное изменение уже отключённого номера, конкурентные изменения |
-| PATCH `/rooms/{room_id}/availability` | Сценарии | [Управление номерами](../tests/test_room_management.py): отключение и обратное включение с проверкой доступности на даты, строгий boolean/лишние поля/JSON без изменений, архивный номер/родитель, ID и 401; [оплата прежней брони](../tests/test_room_booking_integrity.py), [403 user](../tests/test_admin_operations_access.py) | Повтор одного значения, дополнительные сочетания состояний, конкурентные операции |
-| DELETE `/rooms/{room_id}` | Сценарии | [Управление номерами](../tests/test_room_management.py): 204 с пустым телом, публичное скрытие/admin-чтение и список, повтор без изменения снимка, отель не меняется, ID и 401; [ACTIVE_BOOKINGS_EXIST](../tests/test_room_booking_integrity.py), [403 user](../tests/test_admin_operations_access.py) | Архивирование после отмены/истечения/завершения, дополнительные сочетания состояний и конкуренция |
-| GET `/rooms/{room_id}/availability` | Сценарии | [Доступность](../tests/test_room_availability.py): обязательные query, типы/форматы/границы дат и гостей, деньги через Decimal, публичный GET, неверный/неизвестный ID и архивный родитель, причины и их приоритет, GET не резервирует, истёкшее удержание освобождается; [пересечения](../tests/test_booking_overlap.py) | Конкурентные изменения после GET, точное равенство now=expires_at, дополнительные комбинации query и форматов, граница UTC-полуночи |
+| GET `/hotels/{hotel_id}/rooms` | Сценарии | Фильтры, сортировка, страницы, роли и архивность. [Тесты](testing-hotels.md#room-creation-reading) | Сквозное чтение страниц без повторов |
+| GET `/rooms/{room_id}` | Сценарии | Схема, UUID и чтение отключённого или архивного номера. [Тесты](testing-hotels.md#room-creation-reading) | Неверный необязательный JWT |
+| POST `/hotels/{hotel_id}/rooms` | Сценарии | Валидация, уникальность номера, родитель и права. [Тесты](testing-hotels.md#room-creation-reading) | Сломанный JSON и лишние поля |
+| PUT `/rooms/{room_id}` | Сценарии | Обновление, дубликат, ограничения вместимости и архивность. [Тесты](testing-hotels.md#room-management) | Обновление отключённого номера |
+| PATCH `/rooms/{room_id}/availability` | Сценарии | Отключение, включение, валидация и оплата прежней брони. [Тесты](testing-hotels.md#room-management) | — |
+| DELETE `/rooms/{room_id}` | Сценарии | Архивирование, повтор и защита действующей брони. [Тесты](testing-hotels.md#room-management) | Архивирование после завершения действующей брони |
+| GET `/rooms/{room_id}/availability` | Сценарии | Цена, параметры, причины отказа и освобождение дат. [Тесты](testing-bookings.md#room-availability) | Доступность на точной границе истечения удержания |
 
 ### Бронирования
 
 | Операция | Уровень | Что проверяется и где | Основные пробелы |
 |---|---|---|---|
-| POST `/bookings` | Сценарии | Существующие бизнес-сценарии; [валидация](../tests/test_booking_validation.py): формат/отсутствие и границы ключа, независимость по user_id, обязательные поля, типы/границы/лишние поля, неверные JSON-тела, исправление с тем же ключом; [пустая авторизация](../tests/test_booking_payment_authorization.py): отсутствие заголовка/пустой Bearer дают 401, данные сохраняются; [конкурентное создание](../tests/test_booking_concurrency.py): два user, разные ключи, Barrier/два потока, один 201 и один ROOM_NOT_AVAILABLE, единственная бронь через списки owner/admin; конкурентный повтор одного ключа от одного user: два 201 с одним снимком, один replay=false/второй true, одинаковый Location и одна бронь; [завершение проживания](../tests/test_booking_completion.py): повтор ключа после completed возвращает исторический снимок без новой брони | Прочие невалидные JWT создания, дополнительные комбинации типов/полей, прочие гонки, повтор после expired |
-| GET `/bookings` | Сценарии | [Список бронирований](../tests/test_booking_list.py): фильтры status/hotel_id/user_id/даты и сочетания, включительные границы, все сортировки/UUID при равенстве, пагинация без потерь, owner/admin и изоляция, 403 user_id даже для себя, неизвестные фильтры и ошибки query; [JWT](../tests/test_authorization.py); [завершение проживания](../tests/test_booking_completion.py): фильтр status=completed на завершённой брони; [фильтр status=expired](testing-bookings.md#booking-list): точная запись и total=1 для владельца и admin с user_id, остальные состояния исключены | Дополнительные комбинации query/типов, полная схема ответов, конкурентные изменения между страницами |
-| GET `/bookings/{booking_id}` | Сценарии | [Чтение и схемы](../tests/test_booking_payment_reading.py): owner/admin, BOOKING_SCHEMA с FormatChecker, UUID/даты/UTC/timestamps/денежные строки/статусы, сумма за ночи, pending_payment/confirmed/cancelled/expired, неизвестный/неверный UUID; [чужой user](../tests/test_booking_access.py); [пустая авторизация](../tests/test_booking_payment_authorization.py): отсутствие заголовка/пустой Bearer дают 401, данные сохраняются; [завершение проживания](../tests/test_booking_completion.py): реальный completed в день check_out UTC, схема, сохранность полей и единственный переход истории | неверный формат/подпись/истечение JWT на этой операции, дополнительные варианты UUID и границы временных полей |
-| PATCH `/bookings/{booking_id}/cancel` | Сценарии | [Отмена](../tests/test_booking_cancellation.py), [доступ](../tests/test_booking_access.py), [admin](../tests/test_admin_booking_access.py): отмена с/без оплаты, возврат, повтор, запрет в день заезда, освобождение дат и права; [матрица состояний](../tests/test_booking_payment_states.py): expired даёт BOOKING_STATE_CONFLICT без изменений; [пустая авторизация](../tests/test_booking_payment_authorization.py): отсутствие заголовка/пустой Bearer дают 401, данные сохраняются; [оплата против отмены](../tests/test_payment_concurrency.py): Barrier/два потока, cancelled с cancelled/refunded-платежом по порядку операций, точная SQL-история; [завершение проживания](../tests/test_booking_completion.py): completed отклоняет отмену с BOOKING_STATE_CONFLICT без изменений | повтор после наступления даты заезда, неизвестный/неверный ID, прочие варианты JWT, гонки с истечением и повторной отменой |
+| POST `/bookings` | Сценарии | Создание, валидация, повтор ключа после оплаты, отмены, истечения или завершения. [Идемпотентность](testing-bookings.md#repeated-requests-checklist), [конкуренция](testing-bookings.md#booking-concurrency) | — |
+| GET `/bookings` | Сценарии | Фильтры, в том числе `expired` и `completed`, сортировка, страницы и доступ. [Тесты](testing-bookings.md#booking-list) | — |
+| GET `/bookings/{booking_id}` | Сценарии | Схема, состояния, UUID и права владельца и admin. [Тесты](testing-bookings.md#booking-payment-reading) | — |
+| PATCH `/bookings/{booking_id}/cancel` | Сценарии | Возврат, повтор, права, запреты по состояниям и гонка с оплатой. [Сценарии](testing-bookings.md#booking-cancellation-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) | Повтор после заезда и гонка двух отмен |
 
 ### Платежи
 
 | Операция | Уровень | Что проверяется и где | Основные пробелы |
 |---|---|---|---|
-| POST `/bookings/{booking_id}/payments` | Сценарии | [Основной путь](../tests/test_booking_flow.py), [отказ](../tests/test_payment_failure.py), [повторы](../tests/test_payment_repeated_requests.py), [истечение](../tests/test_booking_expiration.py), [доступ user](../tests/test_booking_access.py) и [admin](../tests/test_admin_booking_access.py): создание, повтор pending, новая попытка после failed, expired, чужая бронь; [матрица состояний](../tests/test_booking_payment_states.py): confirmed/cancelled/expired отклоняются без изменения ресурсов; [пустая авторизация](../tests/test_booking_payment_authorization.py): отсутствие заголовка/пустой Bearer дают 401, данные сохраняются; [конкурентные платежи](../tests/test_payment_concurrency.py): Barrier/два потока, один 201 и один PAYMENT_ALREADY_PENDING, read-only SQL подтверждает единственную pending-строку собственной брони; [завершение проживания](../tests/test_booking_completion.py): completed отклоняет создание с BOOKING_NOT_PAYABLE; SQL подтверждает единственный succeeded-платёж | неизвестный/неверный ID, прочие варианты JWT, другие гонки создания/изменения платежей |
-| GET `/payments/{payment_id}` | Сценарии | [Чтение и схемы](../tests/test_booking_payment_reading.py): owner/admin, PAYMENT_SCHEMA с FormatChecker, UUID/UTC/сумма/RUB/failure_reason, pending/succeeded/failed/cancelled/refunded, связь с бронью, неизвестный/неверный UUID; [чужой user](../tests/test_booking_access.py); [пустая авторизация](../tests/test_booking_payment_authorization.py): отсутствие заголовка/пустой Bearer дают 401, данные сохраняются; [завершение проживания](../tests/test_booking_completion.py): при завершении проживания succeeded-платёж остаётся полностью неизменным | Неверный формат/подпись/истечение JWT на этой операции, дополнительные варианты UUID и границы временных полей |
-| POST `/payments/{payment_id}/simulate-success` | Сценарии | [Основной путь](../tests/test_booking_flow.py), [отказ](../tests/test_payment_failure.py), [повторы](../tests/test_payment_repeated_requests.py), [истечение](../tests/test_booking_expiration.py), [доступ user](../tests/test_booking_access.py) и [admin](../tests/test_admin_booking_access.py): оплата, переход брони, повтор, expired, права; [матрица](../tests/test_booking_payment_states.py): confirmed/cancelled/expired; [пустая авторизация](../tests/test_booking_payment_authorization.py): отсутствие заголовка/пустой Bearer дают 401, данные сохраняются; [конкурентный успех](../tests/test_payment_concurrency.py): два потока/Barrier, 200 и BOOKING_NOT_PAYABLE, read-only SQL подтверждает один платёж и единственные переходы succeeded/confirmed; [оплата против отмены](../tests/test_payment_concurrency.py): 200/refunded либо 409/cancelled, бронь cancelled, номер свободен, единственные SQL-переходы; [завершение проживания](../tests/test_booking_completion.py): completed отклоняет успех с BOOKING_NOT_PAYABLE без изменений | Оплата существующей брони после отключения номера проверяется в [сценариях целостности](../tests/test_room_booking_integrity.py); остаются дополнительные сочетания состояний платежа/брони, точная граница срока, неизвестный/неверный ID, прочие варианты JWT, гонки с истечением и другими операциями |
-| POST `/payments/{payment_id}/simulate-failure` | Сценарии | [Отказ](../tests/test_payment_failure.py), [повторы](../tests/test_payment_repeated_requests.py), [доступ user](../tests/test_booking_access.py) и [admin](../tests/test_admin_booking_access.py): причина по умолчанию/своя, сохранение удержания, повтор и права; [валидация](../tests/test_payment_validation.py): границы reason 1/250, типы/null/лишние поля и JSON; [матрица](../tests/test_booking_payment_states.py): confirmed/cancelled/expired; [пустая авторизация](../tests/test_booking_payment_authorization.py): отсутствие заголовка/пустой Bearer дают 401, данные сохраняются; [завершение проживания](../tests/test_booking_completion.py): completed отклоняет отказ с BOOKING_NOT_PAYABLE без изменений | дополнительные сочетания состояний, неизвестный/неверный ID, прочие варианты JWT, конкуренция |
+| POST `/bookings/{booking_id}/payments` | Сценарии | Создание, повторы, запреты по состояниям и конкурентный запрос. [Сценарии](testing-bookings.md#payment-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) | — |
+| GET `/payments/{payment_id}` | Сценарии | Схема, UUID, состояния и доступ. [Тесты](testing-bookings.md#booking-payment-reading) | — |
+| POST `/payments/{payment_id}/simulate-success` | Сценарии | Подтверждение брони, повторы, сроки, права и конкуренция. [Сценарии](testing-bookings.md#payment-success-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) | Гонка оплаты с истечением |
+| POST `/payments/{payment_id}/simulate-failure` | Сценарии | Отказ с причиной, повтор, валидация и запреты по состояниям. [Сценарии](testing-bookings.md#payment-failure-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) | Одновременные симуляции успеха и отказа |
 
 ### Администрирование и health
 
 | Операция | Уровень | Что проверяется и где | Основные пробелы |
 |---|---|---|---|
-| GET `/admin/users` | Сценарии | [Администрирование](../tests/test_admin_users.py): role/is_active с собственным контрольным пользователем, created_at/email в обе стороны и UUID при равенстве, пагинация/пустая страница/defaults, ошибки query/sort, отсутствие секретов; [403 user](../tests/test_admin_operations_access.py), 401 без/с неверным токеном | Дополнительные комбинации query, полная схема каждой записи, проверка точного total на полностью контролируемом каталоге |
-| GET `/admin/users/{user_id}` | Сценарии | [Администрирование](../tests/test_admin_users.py): точные данные собственного пользователя без пароля/хеша, X-Request-ID, неизвестный/неверный UUID, 401; [403 user](../tests/test_admin_operations_access.py) | Расширенная проверка форматов ID/timestamps и всех состояний пользователя |
-| PATCH `/admin/users/{user_id}` | Сценарии | [Администрирование](../tests/test_admin_users.py): повышение/понижение роли с уже выданным JWT, отключение/включение без потери брони/платежа, оба поля, валидация/JSON без частичного изменения, ID и 401/403; [LAST_ACTIVE_ADMIN](../tests/test_last_admin.py): три отказа в финальной фазе CI `full` или на отдельном локальном стенде | Конкурентные изменения роли/активности и последнего admin, дополнительные комбинации типов |
-| GET `/health/live` | Частично | [Успешный health](../tests/test_health.py): публичный GET без токена, 200, Content-Type application/json и точное тело status=alive | Только успешный контракт; сбои инфраструктуры не моделируются |
-| GET `/health/ready` | Частично | [Успешный health](../tests/test_health.py): публичный GET без токена, 200, Content-Type application/json и точное тело status=ready | Ответы 503/DATABASE_NOT_READY не проверялись по текущему объёму задачи |
+| GET `/admin/users` | Сценарии | Фильтры, сортировка, пагинация, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) | — |
+| GET `/admin/users/{user_id}` | Сценарии | Чтение, UUID, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) | — |
+| PATCH `/admin/users/{user_id}` | Сценарии | Роль, активность, сохранность броней и защита последнего admin. [Тесты](testing-auth.md#admin-users) | Одновременные изменения роли или активности последних двух администраторов |
+| GET `/health/live` | Частично | HTTP 200 и `status=alive` без токена. [Тесты](../tests/test_health.py) | — |
+| GET `/health/ready` | Частично | HTTP 200 и `status=ready` без токена. [Тесты](../tests/test_health.py) | HTTP 503 при неготовности БД |
 
-### Итог
+**Итого: 26 операций со сценариями, 3 покрыты частично.**
 
-Из 29 операций: **26 — «Сценарии», 3 — «Частично», 0 — «Подготовка», 0 — «Нет»**. Это распределение глубины проверок, а не процент покрытия требований, ветвей кода или готовности продукта. Даже наличие API-функции или успешного вызова в фикстуре не означает самостоятельного покрытия эндпоинта.
-
-При изменении тестов обновляйте соответствующую строку карты и сценарии по теме.
+Общие задачи: дополнить схемы успешных ответов профиля и списков броней и пользователей в существующих тестах. Проверки `exp`, `iss` и `aud` остаются задачей [общей авторизации](testing-auth.md#authorization).
 
 <a id="smoke-suite"></a>
 
@@ -113,62 +106,26 @@
 | [test_protected_operations_reject_invalid_credentials](../tests/test_authorization.py) — только missing, три операции | 3 | Профиль, список броней и создание отеля недоступны без токена: 401 |
 | [test_user_cannot_create_hotel](../tests/test_admin_operations_access.py) | 1 | Обычный пользователь получает 403 на admin-операцию, отель не создаётся |
 
-Для запуска нужны работающий тестовый API, API_BASE_URL (по умолчанию localhost:8000/api/v1), API_ADMIN_EMAIL и API_ADMIN_PASSWORD. Набор создаёт собственные данные: он предназначен для тестового стенда. TEST_DATABASE_URL и изолированный стенд последнего admin не нужны. Каждый тест независим; порядок выполнения не задаётся. Проверки создания отеля и номера через admin также выполняются в подготовке сценариев бронирования, но это не самостоятельная матрица управления каталогом.
-
-Маркер зарегистрирован в pytest.ini. На обычных тестах он стоит у функции; для отсутствующего токена и совпадения дат — у конкретного pytest.param, чтобы не включать всю матрицу. Параметр same_dates хранится в data/booking.py и используется проверкой пересечений. Маркер не меняет поведение полного запуска: без -m выполняются и smoke, и остальные тесты.
-
-Конкурентные операции, подготовка expiry/completed через SQL и подробные матрицы валидации входят в регрессию. Проверить состав smoke можно командой `pytest -m smoke --collect-only -q`.
+Для smoke нужны работающий API и учётные данные администратора из `.env`. [Команды запуска](../README.md#быстрый-старт)
 
 ## Запуск отдельного приложения
 
-Приложение находится в отдельном репозитории [Hotel Booking API](https://github.com/riqkyvf/hotel-booking-api). В репозитории автотестов нет `compose.yaml`, Dockerfile и исходников приложения. Нужен запущенный Docker Desktop с Linux containers.
-
-Из каталога, где вы храните проекты, выполните:
+Запустите Docker и выполните команды в PowerShell. Если API уже клонирован, перейдите в его каталог и начните с Compose.
 
 ```powershell
 git clone https://github.com/riqkyvf/hotel-booking-api.git
 Set-Location hotel-booking-api
-docker compose up --build -d
-docker compose ps -a
+docker compose up --build --wait
 Invoke-RestMethod http://localhost:8000/api/v1/health/ready
-git rev-parse HEAD
 ```
 
-Если приложение уже клонировано, выполните команды Compose из его каталога. Дождитесь HTTP 200 и `status = ready` после завершения миграций и загрузки тестовых данных.
+После HTTP 200 вернитесь в каталог автотестов и настройте `.env` по [примеру](../.env.example). Для отладки доступны [Swagger](http://localhost:8000/docs) и [OpenAPI](http://localhost:8000/openapi.json). При сбое стенда проверьте `docker compose ps -a` и `docker compose logs --tail 100 init api worker db`.
 
-После подготовки стенда вернитесь в каталог автотестов и следуйте основному README. `.env` приложения и `.env` автотестов — разные файлы: первый настраивает сервер, второй — адрес API и учётные данные для тестов. Для локального запуска приложение имеет свои демонстрационные настройки по умолчанию.
+Учётные записи, DBeaver, миграции и сброс данных описаны в [README приложения](https://github.com/riqkyvf/hotel-booking-api#readme).
 
-Нормативные документы:
+## Контракт
 
-- [requirements.md](requirements.md) — функции, границы, идемпотентность, истечение, деактивация, платежи и конкурентные операции.
-- [api-specification.md](api-specification.md) — 29 операций, параметры, авторизация, примеры, HTTP-коды и формат ошибок.
-- [business-rules.md](business-rules.md) — стоимость, доступность и граф состояний.
-- [database-schema.md](database-schema.md) — поля, типы, связи и ограничения.
-
-## Адреса
-
-Swagger: [localhost:8000/docs](http://localhost:8000/docs). OpenAPI: [localhost:8000/openapi.json](http://localhost:8000/openapi.json). Readiness: [localhost:8000/api/v1/health/ready](http://localhost:8000/api/v1/health/ready).
-
-## Локальная БД / DBeaver
-
-Драйвер PostgreSQL; host `localhost`, port `5433`, database `hotel`, user `hotel`, password `hotel_dev_password`, SSL disabled. Это демонстрационные локальные настройки приложения. При изменении `.env` приложения используйте свои значения. JDBC URL: `jdbc:postgresql://localhost:5433/hotel`. Схема `public`. Для времён UTC выполните `SET TIME ZONE 'UTC'` в нужной SQL-сессии.
-
-## Seed и сброс
-
-Учётные записи: admin@example.com, admin2@example.com, alice@example.com, bob@example.com, disabled@example.com. Общий локальный пароль `HotelDemo123!`; последняя учётная запись неактивна. При первом старте seed выполняется автоматически, повторный запуск не изменяет данные.
-
-Сброс без публичного HTTP-эндпоинта; владелец отдельного тестового стенда выполняет команды из корня **репозитория приложения**, где лежит `compose.yaml`. Команды удаляют все данные приложения; во время сброса тесты и другие пользователи стенда работать не должны:
-
-```powershell
-docker compose stop api worker
-docker compose run --rm --no-deps api python -m app.scripts.reset_db --confirm-reset
-docker compose up -d
-```
-
-## Диагностика
-
-Все Docker-команды выполняются в репозитории приложения. `docker compose ps -a` показывает `db/api/worker` healthy и `init` exited (0). При проблемах используйте `docker compose logs --tail 100 init api worker db`. Проверка миграции: `docker compose exec api alembic current`, сверка моделей: `docker compose exec api alembic check`.
-
-Worker повторяет проход через 5 секунд; healthcheck считает его готовым, если успешный проход был менее 60 секунд назад. Ошибки пишутся в stdout/stderr контейнеров. API возвращает request_id для сопоставления ошибок с журналом; секреты не включаются в ответы об ошибках.
-
-Неоплаченные seed-брони меняют состояние со временем — это нормальное поведение. Точность проверки срока не зависит от частоты worker: API сверяет `clock_timestamp()` после получения блокировок.
+- [Требования](requirements.md)
+- [Спецификация REST API](api-specification.md)
+- [Расчёт стоимости и переходы состояний](business-rules.md)
+- [Ограничения PostgreSQL](database-schema.md)

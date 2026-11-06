@@ -1,458 +1,63 @@
 # Пользователи и авторизация
 
-Сценарии, ограничения покрытия и ссылки на автотесты. Статусы в таблицах описывают покрытие сценариев.
-
-- [Чек-лист регистрации пользователя](#registration-checklist)
-- [Чек-лист входа пользователя](#login-checklist)
-- [Чек-лист изменения профиля](#profile-checklist)
-- [Решения и открытые вопросы к требованиям регистрации](#registration-requirements-questions)
+Контракт описан в [FR-01 и FR-02](requirements.md#fr-01-пользователи-и-авторизация). Здесь собраны сценарии и ссылки на их реализацию. Конкретные входные значения находятся в параметрах тестов.
 
 <a id="registration-checklist"></a>
 
-## Чек-лист регистрации пользователя
+## Регистрация
 
-<a id="registration-checklist-основания-и-статусы"></a>
+| Сценарий | Что проверяем | Автотесты |
+| --- | --- | --- |
+| Создание пользователя | HTTP 201, поля и значения по умолчанию, отсутствие пароля и хеша, вход и чтение созданного профиля | [Регистрация](../tests/test_registration.py), [сквозной сценарий](../tests/test_auth_flow.py) |
+| Email | Нормализация, ASCII и Punycode, граница длины, дубликаты и неверный формат | [Регистрация](../tests/test_registration.py), [сквозные проверки](../tests/test_auth_flow.py) |
+| Пароль | Границы 10–128, печатные ASCII без пробелов, чувствительность к регистру | [Регистрация](../tests/test_registration.py), [сквозные проверки](../tests/test_auth_flow.py) |
+| Имя и телефон | Обязательность имени, длина и пробелы, кириллица в имени, формат телефона и `null` | [Регистрация](../tests/test_registration.py) |
+| Ошибки и побочные эффекты | Неверные типы и JSON, лишние поля и защита роли. Отказ не резервирует email, дубликат не меняет пользователя | [Регистрация](../tests/test_registration.py), [сквозные проверки](../tests/test_auth_flow.py) |
 
-### Основания и статусы
-
-- [FR-01 — пользователи и авторизация](requirements.md#fr-01-пользователи-и-авторизация).
-- [Контракт API](api-specification.md): регистрация, формат ответа, ошибки и неизвестные поля.
-- [Схема БД — users](database-schema.md#users).
-- OpenAPI стенда: `http://localhost:8000/openapi.json`.
-
-Тестовые данные в таблицах — примеры. Автотесты используют уникальные email и значения, указанные в коде. Для границ и разных типов смотрите конкретные параметры теста.
-
-<a id="registration-checklist-общие-тестовые-данные-и-правила-выполнения"></a>
-
-### Общие тестовые данные и правила выполнения
-
-Базовый валидный запрос:
-
-```json
-{
-  "email": "qa.reg.001@example.com",
-  "password": "HotelDemo123!",
-  "name": "Test User",
-  "phone": "+79991234567"
-}
-```
-
-- Для независимых регистраций использовать новый email, отсутствующий в БД. Исключение — проверки дубликатов.
-- В негативном тесте менять только проверяемое поле, остальные оставлять валидными.
-- Отправлять JSON с `Content-Type: application/json`.
-- Для проверок длины повторять одну букву нужное количество раз. Для имени считать длину после обрезки крайних пробелов; для телефона считать цифры без `+`.
-- В строках с несколькими значениями каждый вариант выполнять отдельным запросом. Отмечайте сценарий как покрытый, когда автоматизированы все перечисленные варианты.
-
-<a id="registration-checklist-1-основной-сценарий-и-сохранение-данных"></a>
-
-### 1. Основной сценарий и сохранение данных
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| REG-001 | Регистрация без телефона | Валидное тело без ключа `phone` | `201`; пользователь создан, `phone = null` | Покрыто | [test_register_without_phone](../tests/test_registration.py) |
-| REG-002 | Регистрация с телефоном | Базовое тело | `201`; телефон соответствует переданному значению | Покрыто | [test_register_with_phone](../tests/test_registration.py) |
-| REG-003 | Роль нового пользователя | Успешная регистрация; ответ и запись БД | `role = user` | Частично | [test_register_without_phone](../tests/test_registration.py); Проверен ответ API; БД в автотесте не проверяется |
-| REG-004 | Активность нового пользователя | Успешная регистрация; ответ и запись БД | `is_active = true` | Частично | [test_register_without_phone](../tests/test_registration.py); Проверен ответ API; БД в автотесте не проверяется |
-| REG-005 | Пароль хранится в виде Argon2-хеша | Найти созданного пользователя в БД; проверить формат `users.password_hash`; при наличии инструмента — верификацию хеша | Вместо открытого пароля сохранён Argon2-хеш, соответствующий исходному паролю | Не покрыто | Не автоматизировано; проверка Argon2 в БД отложена, планируется вручную |
-| REG-007 | Регистрация публична | Валидное тело без заголовка Authorization | `201` | Покрыто | [test_register_without_phone](../tests/test_registration.py) |
-| REG-008 | Основные данные пользователя в ответе регистрации | Валидная регистрация без телефона | `email` и `name` совпадают с отправленными; `phone = null`, `role = user`, `is_active = true` | Покрыто | [test_register_without_phone](../tests/test_registration.py) |
-| REG-010 | Секреты отсутствуют в успешном ответе | Ответ регистрации | Нет `password` и `password_hash` | Покрыто | [test_register_without_phone](../tests/test_registration.py) |
-| REG-011 | Вход после регистрации | Вызвать `/auth/login` с зарегистрированными email и паролем | `200`; выдан токен | Покрыто | [test_registered_user_can_login_and_get_profile](../tests/test_auth_flow.py) |
-| REG-012 | Чтение созданного профиля | С токеном из REG-011 вызвать `GET /users/me` | `200`; ID совпадает с регистрацией; профиль содержит сохранённые нормализованные значения | Покрыто | [test_registered_user_can_login_and_get_profile](../tests/test_auth_flow.py); Проверены вход, поля профиля и совпадение ID с ответом регистрации |
-
-<a id="registration-checklist-2-поле-email"></a>
-
-### 2. Поле email
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| EMAIL-001 | Валидный email | Новый `qa.email.001@example.com` | `201`; email сохранён | Покрыто | [test_register_without_phone](../tests/test_registration.py) |
-| EMAIL-002 | Приведение к нижнему регистру | Новый `QA.Email.002@EXAMPLE.COM` | `201`; в ответе и БД `qa.email.002@example.com` | Частично | [test_register_lowercases_email](../tests/test_registration.py); Проверен ответ API; БД не проверяется |
-| EMAIL-003 | Обрезка крайних пробелов | `"  qa.email.003@example.com  "` | `201`; в ответе и БД нет крайних пробелов | Частично | [test_register_trims_email](../tests/test_registration.py); Проверен ответ API; БД не проверяется |
-| EMAIL-004 | Дубликат email | Сначала создать пользователя, затем повторить его email | `409`, `error.code = EMAIL_EXISTS` | Покрыто | [test_register_with_existing_email](../tests/test_registration.py) |
-| EMAIL-005 | Обязательность поля | Удалить ключ `email` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_without_required_field](../tests/test_registration.py) |
-| EMAIL-006 | Пустая строка | `"email": ""` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_email](../tests/test_registration.py) |
-| EMAIL-007 | Максимальная длина | Корректный по формату email длиной 254 символа | `201` | Покрыто | [test_register_with_max_email_length](../tests/test_registration.py) |
-| EMAIL-008 | Дубликат в другом регистре | Существующий email передать в другом регистре | `409`, `error.code = EMAIL_EXISTS` | Покрыто | [test_register_with_existing_email](../tests/test_registration.py) |
-| EMAIL-009 | Дубликат с крайними пробелами | Существующий email окружить пробелами | `409`, `error.code = EMAIL_EXISTS` | Покрыто | [test_register_with_existing_email](../tests/test_registration.py) |
-| EMAIL-010 | Превышение максимальной длины | Email длиной 255 символов, без иных нарушений формата, насколько это возможно | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_email_exceeding_max_length](../tests/test_registration.py) |
-| EMAIL-011 | Неверный формат | По отдельности: `userexample.com`, `user@`, `@example.com` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Покрыто | [test_register_with_invalid_email](../tests/test_registration.py) |
-| EMAIL-012 | Неверный тип | Число / boolean; исходный набор значений уточнить | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_field_type](../tests/test_registration.py) |
-| EMAIL-013 | Явный null | `"email": null` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_null_required_field](../tests/test_registration.py) |
-| EMAIL-014 | Только пробелы | `"email": "   "` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_email](../tests/test_registration.py) |
-| EMAIL-015 | Массив и объект | По отдельности: `[]`, `{}` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Покрыто | [test_register_with_invalid_field_type](../tests/test_registration.py) |
-| EMAIL-016 | Комбинация нормализации при дубликате | Существующий email одновременно в другом регистре и с пробелами по краям | `409`, `error.code = EMAIL_EXISTS` | Не покрыто | Не автоматизировано |
-| EMAIL-017 | Кириллица до @ запрещена | `пользователь@example.com` | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py); cyrillic_local |
-| EMAIL-018 | Кириллица после @ запрещена | `user@пример.рф` | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py); cyrillic_domain |
-| EMAIL-019 | Кириллица в обеих частях запрещена | `пользователь@пример.рф` | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py); cyrillic_both |
-| EMAIL-020 | Крайние пробелы не скрывают Unicode в email | `"  ПОЛЬЗОВАТЕЛЬ@ПРИМЕР.РФ  "` | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py); cyrillic_with_outer_spaces |
-| EMAIL-021 | Смешение латиницы и кириллицы запрещено | `usеr@example.com` — кириллическая е | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py); mixed_script |
-| EMAIL-022 | Вход с email вне ASCII запрещён | Email с кириллицей до/после @ | `422 VALIDATION_ERROR`, поле `body.email`; токен не выдаётся | Покрыто | [test_login_with_invalid_email_characters](../tests/test_login.py) |
-| EMAIL-023 | Иероглифы и emoji в обеих частях email запрещены | Иероглифы/emoji до @ и в домене | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py) |
-| EMAIL-024 | Управляющие и невидимые символы email запрещены | Tab, LF, NBSP, zero-width space, NUL, DEL | `422 VALIDATION_ERROR`, поле `body.email`; символы не удаляются | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py) |
-| EMAIL-025 | Внутренний пробел email запрещён | `user name@example.com` | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_register_with_invalid_email_characters](../tests/test_registration.py) |
-| EMAIL-026 | Максимальная длина считается после обрезки | Email 254 символа с крайними обычными пробелами | Регистрация `201`; нормализованный адрес длиной 254; login `200` | Покрыто | [test_register_and_login_with_max_email_length](../tests/test_auth_flow.py) |
-| EMAIL-027 | ASCII email с plus-tag и Punycode | Уникальная локальная часть +tag, домены example.com и xn--e1afmkfd.xn--p1ai | Регистрация `201`; email нормализован; login `200` | Покрыто | [test_register_and_login_with_ascii_email](../tests/test_auth_flow.py) |
-
-Пример подготовки длинного адреса: 64 символа `a`, затем `@`, затем домен из меток длиной 63, 63 и 61, разделённых точками — всего 254 символа. Для 255 увеличить последнюю метку до 62. Проверять, что причина отказа относится к исследуемому ограничению, а не к другому правилу email.
-
-<a id="registration-checklist-3-поле-password"></a>
-
-### 3. Поле password
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| PASS-001 | Валидный пароль | `HotelDemo123!` | `201` | Покрыто | [test_register_without_phone](../tests/test_registration.py) |
-| PASS-002 | Пробелы в пароле запрещены | Крайние, внутренние и только пробелы | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-003 | Пароль короче минимума | Строка длиной менее 10; исходная длина не зафиксирована | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_password_length](../tests/test_registration.py) |
-| PASS-004 | Пароль длиннее максимума | Строка длиной более 128; исходная длина не зафиксирована | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_password_length](../tests/test_registration.py) |
-| PASS-005 | Обязательность поля | Удалить ключ `password` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_without_required_field](../tests/test_registration.py) |
-| PASS-006 | Неверный тип | Число / boolean; исходный набор значений уточнить | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_field_type](../tests/test_registration.py) |
-| PASS-007 | Точные границы | По отдельности: 9, 10, 128, 129 символов | Соответственно `422`, `error.code = VALIDATION_ERROR` / `201` / `201` / `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_password_length](../tests/test_registration.py); Также test_register_with_valid_password_length: вместе проверены 9, 10, 128 и 129 |
-| PASS-008 | Пустая строка | `"password": ""` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_password_length](../tests/test_registration.py) |
-| PASS-009 | Явный null | `"password": null` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_null_required_field](../tests/test_registration.py) |
-| PASS-010 | Массив и объект | По отдельности: `[]`, `{}` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Покрыто | [test_register_with_invalid_field_type](../tests/test_registration.py) |
-| PASS-011 | Крайние пробелы пароля отклоняются | Пробел перед/после допустимого пароля | `422 VALIDATION_ERROR`, пароль не обрезается | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-012 | Внутренний пробел пароля отклоняется | `password 12345` | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-013 | Кириллический пароль отклоняется | `ПарольДляТеста` | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-014 | Вход с кириллическим паролем отклоняется | Существующий пользователь; `ПарольДляТеста` | `422 VALIDATION_ERROR`, поле `body.password`; токен не выдаётся | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py) |
-| PASS-015 | Смешанный кириллический/латинский пароль запрещён | `ПарольTest123` | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-016 | Кириллическая буква вместо латинской запрещена при входе | `TestPassword123а` — кириллическая а | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py); confusable |
-| PASS-017 | Кириллица запрещена при допустимой длине | 10 и 128 букв я | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-018 | Иероглифы и emoji в пароле запрещены | ASCII-пароль с иероглифами/emoji, общая длина допустима | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-019 | Управляющие и невидимые символы пароля запрещены | Tab, LF, CR, NBSP, zero-width space, NUL, DEL | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py) |
-| PASS-020 | Пароль только из пробелов запрещён | 10 обычных пробелов | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_register_with_invalid_password_characters](../tests/test_registration.py); only_spaces |
-| PASS-021 | Нет обязательного сочетания категорий символов | Только буквы; только цифры; только пунктуация; все печатные ASCII без пробела | Регистрация `201`; login `200`; непустой токен | Покрыто | [test_register_and_login_with_allowed_ascii_password](../tests/test_auth_flow.py) |
-
-<a id="registration-checklist-4-поле-name"></a>
-
-### 4. Поле name
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| NAME-001 | Валидное имя | `Test User` | `201`; имя сохранено | Покрыто | [test_register_without_phone](../tests/test_registration.py) |
-| NAME-002 | Обрезка крайних пробелов | `"  Test User  "` | `201`; в ответе и БД `Test User` | Частично | [test_register_trims_name](../tests/test_registration.py); Проверен ответ API; БД не проверяется |
-| NAME-003 | Пустое имя | `"name": ""` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_name](../tests/test_registration.py) |
-| NAME-004 | Имя пустое после обрезки | `"name": "   "` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_name](../tests/test_registration.py) |
-| NAME-005 | Минимальная допустимая длина | `"name": "A"` | `201` | Покрыто | [test_register_with_valid_name_length](../tests/test_registration.py) |
-| NAME-006 | Максимальная допустимая длина | 100 символов `a` | `201` | Покрыто | [test_register_with_valid_name_length](../tests/test_registration.py) |
-| NAME-007 | Превышение максимальной длины | 101 символ `a` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_name](../tests/test_registration.py) |
-| NAME-008 | Длина проверяется после обрезки | 100 символов `a`, окружённых двумя пробелами с каждой стороны | `201`; сохранены 100 символов без крайних пробелов | Покрыто | [test_register_trims_name](../tests/test_registration.py) |
-| NAME-009 | Обязательность поля | Удалить ключ `name` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_without_required_field](../tests/test_registration.py) |
-| NAME-010 | Неверные типы | По отдельности: `123`, `true`, `false`, `[]`, `{}` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Покрыто | [test_register_with_invalid_field_type](../tests/test_registration.py) |
-| NAME-011 | Явный null | `"name": null` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_null_required_field](../tests/test_registration.py) |
-| NAME-012 | Кириллица | `Евгений` | `201`; имя сохранено корректно | Покрыто | [test_register_with_cyrillic_name](../tests/test_registration.py) |
-
-<a id="registration-checklist-5-поле-phone"></a>
-
-### 5. Поле phone
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| PHONE-001 | Корректный телефон | `+79991234567` | `201`; значение сохранено | Покрыто | [test_register_with_valid_phone_length](../tests/test_registration.py); Используются граничные номера, а не точный пример строки чек-листа |
-| PHONE-002 | Явный null | `"phone": null` | `201`; `phone = null` в ответе и БД | Частично | [test_register_with_null_phone](../tests/test_registration.py); Проверен ответ API; БД не проверяется |
-| PHONE-003 | Пустая строка | `"phone": ""` | `422`, `error.code = VALIDATION_ERROR` по OpenAPI; пустая строка не равна null | Покрыто | [test_register_with_invalid_phone](../tests/test_registration.py) |
-| PHONE-004 | Только пробелы | `"phone": "   "` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_phone](../tests/test_registration.py) |
-| PHONE-005 | Телефон без плюса | `79991234567` как JSON-строка | `201`; значение соответствует переданному | Покрыто | [test_register_with_valid_phone_length](../tests/test_registration.py); Используются граничные номера, а не точный пример строки чек-листа |
-| PHONE-006 | Другой начальный код | `+441234567890` | `201`; ограничения на код страны нет | Не покрыто | Не автоматизировано |
-| PHONE-007 | Меньше минимума | 6 цифр без плюса и отдельно с плюсом | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_phone_length](../tests/test_registration.py) |
-| PHONE-008 | Минимальная длина | 7 цифр без плюса и отдельно с плюсом | `201` | Покрыто | [test_register_with_valid_phone_length](../tests/test_registration.py) |
-| PHONE-009 | Максимальная длина | 15 цифр без плюса и отдельно с плюсом | `201`; плюс не входит в количество цифр | Покрыто | [test_register_with_valid_phone_length](../tests/test_registration.py) |
-| PHONE-010 | Превышение максимума | 16 цифр без плюса и отдельно с плюсом | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_phone_length](../tests/test_registration.py) |
-| PHONE-011 | Неверные типы | По отдельности: `1234567890` как число, `true`, `false`, `[]`, `{}` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Покрыто | [test_register_with_invalid_field_type](../tests/test_registration.py); Проверены типы и указание ошибочного поля; число при преобразовании в строку укладывается в допустимую длину телефона |
-| PHONE-012 | Буквы | `+7999abc4567` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_phone](../tests/test_registration.py) |
-| PHONE-013 | Дефисы, скобки, внутренние пробелы | По отдельности: `7999-1234567`, `(7999)1234567`, `7999 1234567` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Покрыто | [test_register_with_invalid_phone](../tests/test_registration.py) |
-| PHONE-014 | Неверное положение или количество плюсов | По отдельности: `++79991234567`, `79991234567+` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Покрыто | [test_register_with_invalid_phone](../tests/test_registration.py) |
-| PHONE-015 | Цифры вне ASCII | `１２３４５６７` — полноширинные цифры | `422`, `error.code = VALIDATION_ERROR`: шаблон допускает только `[0-9]` | Не покрыто | Не автоматизировано |
-| PHONE-016 | Кириллица в телефоне | `+7999абв4567` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_phone](../tests/test_registration.py) |
-
-Отсутствие телефона покрыто REG-001. Явный null проверяется отдельно в PHONE-002.
-
-<a id="registration-checklist-6-тело-запроса-и-защита-серверных-полей"></a>
-
-### 6. Тело запроса и защита серверных полей
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| BODY-001 | Назначение роли клиентом запрещено | Добавить к валидному телу `"role": "admin"` | `422`, `error.code = VALIDATION_ERROR`; пользователь не создан | Частично | [test_register_with_extra_field](../tests/test_registration.py); Проверен отказ; отсутствие записи после запроса не проверяется |
-| BODY-002 | Изменение активности клиентом запрещено | Добавить `"is_active": false` | `422`, `error.code = VALIDATION_ERROR`; пользователь не создан | Частично | [test_register_with_extra_field](../tests/test_registration.py); Проверен отказ; отсутствие записи после запроса не проверяется |
-| BODY-003 | Передача хеша запрещена | Добавить `"password_hash": "some-value"` | `422`, `error.code = VALIDATION_ERROR`; пользователь не создан | Частично | [test_register_with_extra_field](../tests/test_registration.py); Проверен отказ; отсутствие записи после запроса не проверяется |
-| BODY-004 | Произвольное неизвестное поле запрещено | Добавить `"unexpected": "value"` | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_extra_field](../tests/test_registration.py) |
-| BODY-005 | Передача серверных идентификатора и времени запрещена | По одному добавлять `id`, `created_at`, `updated_at` с корректными по формату значениями | `422`, `error.code = VALIDATION_ERROR` для каждого поля | Покрыто | [test_register_with_extra_field](../tests/test_registration.py) |
-| BODY-006 | Пустой JSON-объект | `{}` | `422`, `error.code = VALIDATION_ERROR`; указаны ошибки обязательных полей | Частично | [test_register_with_invalid_body](../tests/test_registration.py); Проверены 422 и code; состав ошибок обязательных полей здесь не проверяется |
-| BODY-007 | Отсутствие тела | Отправить POST без тела | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_body](../tests/test_registration.py) |
-| BODY-008 | Тело не является объектом | По отдельности: `null`, `[]`, `"text"`, `123`, `true` | `422`, `error.code = VALIDATION_ERROR` для каждого значения | Не покрыто | Не автоматизировано |
-| BODY-009 | Синтаксически неверный JSON | Например, отсутствует закрывающая фигурная скобка | `422`, `error.code = VALIDATION_ERROR` | Покрыто | [test_register_with_invalid_body](../tests/test_registration.py) |
-
-<a id="registration-checklist-7-ошибки-отсутствие-побочных-изменений-и-конкуренция"></a>
-
-### 7. Ошибки, отсутствие побочных изменений и конкуренция
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| RESP-001 | Единый формат ошибки валидации | Передать короткий пароль `Q7!x` | `422`, `error.code = VALIDATION_ERROR`; объект `error` содержит `code`, `message`, `details`, `request_id`; элементы details содержат `field`, `message`, `type` | Покрыто | [test_register_validation_error_response](../tests/test_registration.py) |
-| RESP-002 | Единый формат конфликта email | Повторить регистрацию существующего email | `409`, `error.code = EMAIL_EXISTS`; присутствуют `error.message`, `details`, `request_id` | Покрыто | [test_register_duplicate_email_error_response](../tests/test_registration.py) |
-| RESP-003 | Идентификатор запроса | Проверить ответы `201`, `409`, `422` | В каждом есть серверный заголовок `X-Request-ID` | Частично | [test_register_validation_error_response](../tests/test_registration.py); Также test_register_duplicate_email_error_response; заголовок проверен для 422 и 409, для 201 ещё нет |
-| RESP-004 | Пароль не раскрывается в ошибках | Передать узнаваемый пароль-маркер; вызвать 422, затем отдельно 409 | Ответы не содержат переданный пароль, хеш или полное исходное тело с секретами | Покрыто | [test_register_validation_error_response](../tests/test_registration.py); Также test_register_duplicate_email_error_response; проверены пароль-маркер и отсутствие password_hash, без чтения БД |
-| DATA-001 | Отказ валидации не создаёт пользователя | Новый email; невалидное имя; сравнить БД до и после | `422`, `error.code = VALIDATION_ERROR`; запись с новым email отсутствует | Частично | [test_rejected_registration_does_not_reserve_email](../tests/test_auth_flow.py); Проверены отказ входа и последующая регистрация того же email; отсутствие строки в БД напрямую не проверяется |
-| DATA-002 | Конфликт не изменяет существующего пользователя | Существующий email; другие валидные name, phone и password | `409`, `error.code = EMAIL_EXISTS`; поля существующей записи и хеш не изменились; новых записей нет | Частично | [test_duplicate_registration_does_not_change_user](../tests/test_auth_flow.py); Проверены имя, email и работа старого пароля; phone, хеш и количество записей в БД не проверяются |
-| DATA-003 | Создаётся ровно один пользователь | Валидная регистрация; сравнить БД до и после | `201`; одна новая запись с ID из ответа | Не покрыто | Не автоматизировано |
-| CONC-001 | Одновременная регистрация одного email | Два параллельных валидных запроса с одинаковым новым email | Один `201`, другой `409`, `error.code = EMAIL_EXISTS`; в БД одна запись; нет `500` | Не покрыто | Не автоматизировано; конкурентный сценарий отложен |
-
-<a id="registration-checklist-что-осталось"></a>
-
-### Что осталось
-
-- Проверки изменения email профиля, включая отсутствие изменений при отказе, реализованы: [чек-лист профиля](testing-auth.md#profile-checklist).
-- Вручную проверить Argon2 в БД (REG-005); автоматизацию БД пока отложили.
-- Конкурентную регистрацию (CONC-001) выполнить позже.
-- При необходимости дополнить заголовок для 201 и проверки БД; сравнение ID регистрации и профиля уже проверено.
-- Пока не автоматизированы: комбинация регистра и пробелов в дубликате email (EMAIL-016), другой код страны (PHONE-006), полноширинные цифры (PHONE-015), тело другого типа (BODY-008), точное количество записей в БД (DATA-003).
-
-<a id="registration-checklist-дополнительные-выполненные-сценарии"></a>
-
-### Дополнительные выполненные сценарии
-
-- [test_registered_password_is_case_sensitive](../tests/test_auth_flow.py): исходный пароль позволяет войти, изменение регистра первой буквы даёт 401 INVALID_CREDENTIALS.
-- [test_rejected_registration_does_not_reserve_email](../tests/test_auth_flow.py): после 422 вход невозможен, исправленная регистрация с тем же email успешна. Это проверка через API, без SQL.
+Пробелы: конкурентная регистрация, проверка хеша Argon2 и количества записей в БД, отдельные форматы телефона и сочетания нормализации. Открытый вопрос к контракту имени — допустимость цифр, дефисов, апострофов и emoji.
 
 <a id="login-checklist"></a>
 
-## Чек-лист входа пользователя
+## Вход
 
-Основание: [FR-01 и FR-02](requirements.md), [контракт API](api-specification.md) и схема Login из OpenAPI. Login принимает только email и password. Для пароля схема задаёт длину 10–128 символов; для email — корректный формат и максимум 254 символа.
-
-Примеры данных в таблицах обозначают варианты проверки. В коде используются уникальные email. Каждый вариант параметризации запускается отдельно; количество строк чек-листа не равно количеству запусков тестов.
-
-<a id="login-checklist-1-основные-сценарии"></a>
-
-### 1. Основные сценарии
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| LOGIN-001 | Успешный вход | Активный зарегистрированный пользователь; верные email и пароль | `200`; access_token — непустая строка, token_type = bearer, expires_in = 3600 | Покрыто | [test_login_with_valid_credentials](../tests/test_login.py) |
-| LOGIN-002 | Неверный пароль | Существующий email; другой пароль допустимой длины | `401`, error.code = INVALID_CREDENTIALS | Покрыто | [test_login_with_invalid_password](../tests/test_login.py) |
-| LOGIN-003 | Несуществующий email | Уникальный валидный email без регистрации | `401`, error.code = INVALID_CREDENTIALS | Покрыто | [test_login_with_nonexistent_email](../tests/test_login.py) |
-| LOGIN-004 | Вход отключённого пользователя | Создать пользователя и отключить через admin API; передать правильный пароль | `401`, error.code = INVALID_CREDENTIALS; access_token отсутствует | Покрыто | [test_login_with_disabled_user](../tests/test_login.py) |
-
-Пользователя для LOGIN-004 создаёт фикстура disabled_user_credentials. Для подготовки доступа администратора используется локальная seed-учётная запись из [документации](README.md); готовый disabled@example.com не используется.
-
-<a id="login-checklist-2-email-и-пароль"></a>
-
-### 2. Email и пароль
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| LOGIN-005 | Верхний регистр email | Изменить регистр email существующего пользователя | `200`; непустой access_token | Покрыто | [test_login_normalizes_email](../tests/test_login.py) [uppercase] |
-| LOGIN-006 | Крайние пробелы email | Окружить существующий email пробелами | `200`; непустой access_token | Покрыто | [test_login_normalizes_email](../tests/test_login.py) [spaces] |
-| LOGIN-007 | Регистр и пробелы вместе | Верхний регистр email и пробелы по краям | `200`; непустой access_token | Покрыто | [test_login_normalizes_email](../tests/test_login.py) [both] |
-| LOGIN-008 | Email не передан | Удалить email из тела | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_without_required_field](../tests/test_login.py) [email] |
-| LOGIN-009 | Пароль не передан | Удалить password из тела | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_without_required_field](../tests/test_login.py) [password] |
-| LOGIN-010 | Null в обязательных полях | По отдельности email = null и password = null | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_null_required_field](../tests/test_login.py) |
-| LOGIN-011 | Неверные типы полей | Для каждого поля отдельно: целое число, дробное число, true, false, массив, объект | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_invalid_field_type](../tests/test_login.py) |
-| LOGIN-012 | Пустой email и только пробелы | По отдельности пустая строка и строка из пробелов | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_invalid_email](../tests/test_login.py) [empty, spaces] |
-| LOGIN-013 | Неверный формат email | userexample.com, user@, @example.com | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_invalid_email](../tests/test_login.py) |
-| LOGIN-014 | Пустой пароль | password = пустая строка | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_empty_password](../tests/test_login.py) |
-| LOGIN-015 | Регистр пароля значим | Войти с точным паролем, затем изменить регистр первой буквы | Исходный пароль — `200`; изменённый — `401 INVALID_CREDENTIALS` | Покрыто | [test_registered_password_is_case_sensitive](../tests/test_auth_flow.py); сквозной сценарий |
-| LOGIN-016 | Крайние пробелы пароля запрещены | Допустимый пароль с пробелом перед/после | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py) |
-| LOGIN-017 | Внутренний пробел пароля запрещён | `password 12345` | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py) |
-| LOGIN-018 | Кириллический пароль запрещён | `ПарольДляТеста` | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py) |
-| LOGIN-019 | Границы длины пароля при входе | 9, 10, 128, 129 букв a; для допустимых значений зарегистрировать пользователя | 9 и 129 — `422`; 10 и 128 — `200` | Покрыто | [test_login_with_invalid_password_length](../tests/test_login.py); [test_register_and_login_with_allowed_ascii_password](../tests/test_auth_flow.py) |
-| LOGIN-020 | Границы длины email при входе | Зарегистрированный адрес длиной 254, включая крайние пробелы; адрес длиной 255 | 254 после обрезки — `200`; 255 — `422`, поле `body.email` | Покрыто | [test_register_and_login_with_max_email_length](../tests/test_auth_flow.py); [test_login_with_email_exceeding_max_length](../tests/test_login.py) |
-| LOGIN-021 | Email вне ASCII запрещён | Кириллица в обеих частях, иероглифы, emoji | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_login_with_invalid_email_characters](../tests/test_login.py) |
-| LOGIN-022 | Пароль только из пробелов запрещён | 10 обычных пробелов | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py); only_spaces |
-| LOGIN-035 | Иероглифы и emoji в пароле запрещены | Существующий пользователь; пароль с символами вне ASCII | `422 VALIDATION_ERROR`, поле `body.password`; токен не выдаётся | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py) |
-| LOGIN-036 | Управляющие и невидимые символы пароля запрещены | Tab, LF, CR, NBSP, zero-width space, NUL, DEL | `422 VALIDATION_ERROR`, поле `body.password` | Покрыто | [test_login_with_invalid_password_characters](../tests/test_login.py) |
-| LOGIN-037 | Недопустимые пробелы и управляющие символы email | Внутренний пробел, Tab, LF, NBSP, zero-width space, NUL, DEL | `422 VALIDATION_ERROR`, поле `body.email` | Покрыто | [test_login_with_invalid_email_characters](../tests/test_login.py) |
-| LOGIN-038 | Пароль не требует сочетания категорий символов | Только буквы, цифры или пунктуация; полный набор печатных ASCII | С зарегистрированным паролем login `200` | Покрыто | [test_register_and_login_with_allowed_ascii_password](../tests/test_auth_flow.py) |
-
-<a id="login-checklist-3-тело-запроса"></a>
-
-### 3. Тело запроса
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| LOGIN-023 | Лишние поля | По одному добавить name, phone, role, is_active, password_hash, unexpected | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_extra_field](../tests/test_login.py) |
-| LOGIN-024 | Отсутствующее тело | POST без содержимого тела, Content-Type: application/json | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_invalid_body](../tests/test_login.py) [no_body] |
-| LOGIN-025 | Пустой объект | Отправить {} | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_invalid_body](../tests/test_login.py) [empty_object] |
-| LOGIN-026 | Сломанный JSON | Незавершённый объект | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_invalid_body](../tests/test_login.py) [malformed_json] |
-| LOGIN-027 | Тело другого типа | null, массив, строка, число, boolean | `422`, error.code = VALIDATION_ERROR | Покрыто | [test_login_with_invalid_body](../tests/test_login.py) |
-
-<a id="login-checklist-4-ошибки-и-отсутствие-секретов"></a>
-
-### 4. Ошибки и отсутствие секретов
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| LOGIN-028 | Структура ошибки неверных учётных данных | Существующий пользователь; неверный пароль | `401 INVALID_CREDENTIALS`; тело соответствует ERROR_SCHEMA | Покрыто | [test_login_invalid_credentials_error_response](../tests/test_login.py) |
-| LOGIN-029 | Структура ошибки валидации | Короткий пароль Q7!x | `422 VALIDATION_ERROR`; тело соответствует ERROR_SCHEMA; details указывает body.password | Покрыто | [test_login_validation_error_response](../tests/test_login.py) |
-| LOGIN-030 | Идентификатор запроса в ошибках | Ответы 401 и 422 | Есть X-Request-ID, совпадает с error.request_id | Покрыто | [test_login_invalid_credentials_error_response](../tests/test_login.py); [test_login_validation_error_response](../tests/test_login.py) |
-| LOGIN-031 | Заголовок авторизации при отказе | Неверный пароль | `401`; WWW-Authenticate = Bearer | Покрыто | [test_login_invalid_credentials_error_response](../tests/test_login.py) |
-| LOGIN-032 | Пароли и токен не раскрываются в ошибке входа | Получить токен; затем выполнить неуспешный вход с паролем-маркером | `401`; в теле нет исходного и переданного паролей, ранее выданного токена, access_token и password_hash | Покрыто | [test_login_invalid_credentials_error_response](../tests/test_login.py) |
-| LOGIN-033 | Секреты отсутствуют в ошибке валидации | Передать короткий пароль-маркер | `422`; в теле нет переданного пароля, access_token и password_hash | Покрыто | [test_login_validation_error_response](../tests/test_login.py) |
-| LOGIN-034 | Идентификатор успешного запроса | Успешный login | `200`; есть X-Request-ID | Не покрыто | В текущем успешном тесте заголовок не проверяется |
-
-ERROR_SCHEMA хранится в [schemas/error_response.py](../schemas/error_response.py) и импортируется обычным Python-импортом. Схема проверяет структуру; статусы, коды ошибок и значения проверяются assert внутри тестов.
-
-<a id="login-checklist-5-сквозные-сценарии-доступа"></a>
-
-### 5. Сквозные сценарии доступа
-
-Эти пункты используют несколько операций и находятся в test_auth_flow.py.
-
-| ID | Проверка | Тестовые данные / действие | Ожидаемый результат | Покрытие | Автотест / покрытие |
-|---|---|---|---|---|---|
-| AUTH-001 | Выданный токен открывает профиль | Зарегистрироваться, войти, вызвать GET /users/me с токеном | Login `200`; профиль `200`, данные соответствуют пользователю | Покрыто | [test_registered_user_can_login_and_get_profile](../tests/test_auth_flow.py) |
-| AUTH-002 | Деактивация закрывает доступ со старым токеном | Получить токен, убедиться в доступе, отключить пользователя, повторить GET /users/me | До отключения `200`; после — `401 UNAUTHORIZED` с тем же токеном | Покрыто | [test_disabled_user_cannot_use_existing_token](../tests/test_auth_flow.py) |
-| AUTH-003 | Реактивация восстанавливает доступ | Получить токен, отключить пользователя, проверить отказ, включить обратно | Старый ещё не истёкший токен снова открывает профиль; новый login с исходным паролем успешен | Покрыто | [test_reactivated_user_can_use_existing_token_and_login](../tests/test_auth_flow.py) |
-
-<a id="login-checklist-что-оставили-на-следующий-этап"></a>
-
-### Границы покрытия
-
-- LOGIN-034: заголовок X-Request-ID успешного входа пока не проверяется. Границы полей login уже покрыты.
-- Проверки изменения email профиля реализованы: [чек-лист профиля](testing-auth.md#profile-checklist).
-- Отсутствующий, пустой, сломанный JWT и повреждённая подпись проверены на трёх операциях в [общем блоке авторизации](#authorization). Истёкший JWT и неверные iss/aud отложены по решению владельца: для независимой проверки нужны корректно подписанные токены с изменёнными claims. Выдача непустой строки access_token и значение expires_in = 3600 сами по себе не подтверждают корректность содержимого и проверок JWT.
+[Тесты входа](../tests/test_login.py) проверяют выдачу токена, нормализацию email, неправильные учётные данные, отключённого пользователя, валидацию полей и JSON. Ошибки проверяются по HTTP-статусу, коду, схеме и отсутствию секретов. [Сквозные проверки](../tests/test_auth_flow.py) связывают регистрацию, вход и доступ к профилю. Контракт успешных заголовков и содержимое JWT покрыты частично.
 
 <a id="profile-checklist"></a>
 
-## Чек-лист изменения профиля
+## Профиль
 
-Операция: `PATCH /api/v1/users/me`. Окружение: отдельный локальный стенд.
+[Тесты профиля](../tests/test_profile.py) проверяют частичное обновление, очистку телефона через `null`, нормализацию и конфликт email, невалидные типы, пустое тело и серверные поля. После отказа проверяется сохранность профиля. Изменение профиля затрагивает только текущего пользователя. [Сквозные тесты](../tests/test_auth_flow.py) проверяют отключение и восстановление доступа с уже выданным токеном.
 
-Основания: [FR-01 и FR-02](requirements.md#fr-01-пользователи-и-авторизация), [контракт API](api-specification.md#авторизация-и-профиль). Поля изменения — email, name, phone; хотя бы одно обязательно. `null` разрешён только для телефона. Правила ASCII относятся к email; кириллица в имени допустима.
-
-| ID | Проверка | Ожидаемый результат | Покрытие | Автотест |
-|---|---|---|---|---|
-| PRF-001 | Изменить все поля, включая plus-tag и ASCII Punycode-домен | 200; нормализация; GET подтверждает сохранение; ID, роль и активность сохранены; вход работает с новым email, старый даёт 401 | Покрыто | [test_update_profile_all_fields](../tests/test_profile.py) |
-| PRF-002 | Отдельно изменить имя или телефон, проверить границы | 200; имя обрезается до проверки длины; имя 1/100 символов и телефон 7/15 цифр с/без + допустимы; пропущенные поля сохранены | Покрыто | [test_update_profile_single_field](../tests/test_profile.py) |
-| PRF-003 | Изменить только имя после установки email и телефона | 200; ранее сохранённые email и телефон не сбрасываются | Покрыто | [test_update_profile_preserves_omitted_fields](../tests/test_profile.py) |
-| PRF-004 | Очистить ранее установленный телефон через null | 200; телефон null в PATCH и GET; остальные данные сохранены | Покрыто | [test_update_profile_can_clear_phone](../tests/test_profile.py) |
-| PRF-005 | Email 254 символа, с крайними обычными пробелами и без них | 200; длина считается после обрезки; GET подтверждает нормализованный адрес | Покрыто | [test_update_profile_with_max_email_length](../tests/test_profile.py) |
-| PRF-006 | Передать собственный email в исходном виде, верхнем регистре, с пробелами и их сочетанием | 200; email нормализован; конфликта с собой нет | Покрыто | [test_update_profile_with_own_email](../tests/test_profile.py) |
-| PRF-007 | Email другого пользователя, включая варианты нормализации; одновременно валидные имя и телефон | 409 EMAIL_EXISTS; ошибка соответствует ERROR_SCHEMA; GET показывает исходный профиль без частичных изменений | Покрыто | [test_update_profile_rejects_existing_email](../tests/test_profile.py) |
-| PRF-008 | Общая матрица недопустимых символов email | 422 VALIDATION_ERROR, body.email; валидное имя из того же запроса не сохраняется | Покрыто | [test_update_profile_rejects_invalid_email_characters](../tests/test_profile.py) |
-| PRF-009 | Null имени/email; неверные формат и длина email, имени, телефона | 422 VALIDATION_ERROR; профиль не меняется; путь поля проверяется там, где это полевая ошибка | Покрыто | [test_update_profile_rejects_invalid_values](../tests/test_profile.py) |
-| PRF-010 | Числа, boolean, массивы и объекты для каждого поля | 422 VALIDATION_ERROR с путём поля; профиль не меняется | Покрыто | [test_update_profile_rejects_invalid_types](../tests/test_profile.py) |
-| PRF-011 | Передать роль, активность, пароль, хеш, ID, user_id, timestamps или неизвестное поле | 422 VALIDATION_ERROR; валидное изменение имени из того же запроса также не сохраняется | Покрыто | [test_update_profile_rejects_forbidden_fields](../tests/test_profile.py) |
-| PRF-012 | Нет тела, пустой объект, сломанный JSON или тело другого типа | 422 VALIDATION_ERROR в едином формате; профиль не меняется | Покрыто | [test_update_profile_rejects_invalid_body](../tests/test_profile.py) |
-| PRF-013 | Email 255 символов, с крайними пробелами и без них | 422 VALIDATION_ERROR, body.email; профиль не меняется | Покрыто | [test_update_profile_rejects_email_exceeding_max_length](../tests/test_profile.py) |
-| PRF-014 | Нет Authorization, пустой Bearer или некорректный токен | 401 UNAUTHORIZED; WWW-Authenticate: Bearer; профиль не меняется | Покрыто | [test_update_profile_requires_authorization](../tests/test_profile.py) |
-| PRF-015 | Отключить пользователя после выдачи токена, затем изменить профиль | 401 UNAUTHORIZED со старым токеном | Покрыто | [test_disabled_user_cannot_update_profile](../tests/test_profile.py) |
-| PRF-016 | Изменить профиль, когда в стенде есть второй пользователь | Меняется только текущий пользователь; профиль второго остаётся прежним | Покрыто | [test_update_profile_changes_only_current_user](../tests/test_profile.py) |
-| PRF-017 | Ошибка с паролем-маркером в запрещённом поле | 422; ERROR_SCHEMA; X-Request-ID совпадает с error.request_id; пароль и токен не отражаются; профиль не меняется | Покрыто | [test_update_profile_validation_error_response](../tests/test_profile.py) |
-
-<a id="profile-checklist-известные-ограничения"></a>
-
-### Известные ограничения
-
-- В живой OpenAPI-схеме email и name допускают null через anyOf, но runtime-валидация и нормативные требования запрещают явный null. Это несоответствие схемы приложения; тесты не ослабляют контракт ради него. Для null имени проверяется отказ и отсутствие изменений без привязки к недокументированному пути модельной ошибки.
-- Сохранность данных проверяется через GET API, без SQL. Хеш пароля и отсутствие прямых изменений в БД отдельно не проверяются.
-- Истёкший JWT, неверные подпись/iss/aud, конкурентные PATCH, изменение профиля администратором и полная валидация ID/timestamps успешного ответа пока не покрыты этим модулем.
-- Тесты создают собственные профили.
-
-<a id="registration-requirements-questions"></a>
-
-## Решения и открытые вопросы к требованиям регистрации
-
-| ID | Вопрос | Решение / статус |
-|---|---|---|
-| Q-REG-01 | Поддерживается ли кириллица в email до/после @? | Решено: обе части адреса должны быть ASCII. Кириллица, иероглифы, emoji и другие символы вне ASCII запрещены. |
-| Q-REG-02 | Какие символы разрешены в пароле? | Решено: только печатные ASCII `U+0021–U+007E` без пробела, длина 10–128; обязательного сочетания категорий символов нет. |
-| Q-REG-03 | Когда проверяется максимум email 254 символа? | Решено: после удаления крайних обычных пробелов ASCII `U+0020`. |
-| Q-REG-04 | Разрешён ли пароль только из пробелов? | Решено: нет. Любые пробельные символы в любом месте пароля запрещены; пароль не обрезается. |
-| Q-REG-05 | Разрешены ли в имени цифры, дефисы, апострофы и emoji? | Открыто: для имени пока определены длина 1–100 и удаление крайних пробелов. Ограничения email и пароля на имя не распространяются. |
-
-Проверки регистрации и входа должны подтверждать отказ для кириллического пароля и пароля с пробелами. Проверки изменения email профиля реализованы: [чек-лист профиля](testing-auth.md#profile-checklist). Наблюдаемое поведение само по себе не заменяет требование.
+Пробелы: полная схема успешного GET, форматы отдельных полей и конкурентное обновление. У OpenAPI и runtime остаётся расхождение в описании `null` для email и имени. Правило контракта допускает `null` только для телефона.
 
 <a id="authorization"></a>
 
-## Общие проверки авторизации
+## JWT и права
 
-Модуль: [test_authorization.py](../tests/test_authorization.py). Проверяется общий отказ в доступе на трёх операциях: GET `/users/me`, GET `/bookings`, POST `/hotels`. Последняя получает валидное тело создания, чтобы не смешивать ошибки авторизации и валидации. Каждый случай создаёт своего обычного пользователя.
+[Общая авторизация](../tests/test_authorization.py) проверяет отсутствующий, пустой и повреждённый токен на профиле, списке броней и создании отеля. Повреждение подписи и изменение claims — разные сценарии. Истечение токена и неверные `iss`/`aud` остаются отложенными проверками.
 
-| ID | Проверка | Ожидаемый результат | Покрытие |
-|---|---|---|---|
-| JWT-001 | Нет заголовка Authorization | 401 UNAUTHORIZED, ERROR_SCHEMA, совпадающий request ID, WWW-Authenticate: Bearer | Покрыто |
-| JWT-002 | Пустой Bearer | Те же проверки отказа | Покрыто |
-| JWT-003 | Некорректный формат JWT | Те же проверки отказа; токен не отражается в теле | Покрыто |
-| JWT-004 | У настоящего токена изменён первый байт подписи, header и payload сохранены | Те же проверки отказа; токен остаётся синтаксически трёхчастным JWT с base64url-подписью | Покрыто |
-| JWT-005 | Корректно подписанный, но истёкший JWT | По контракту 401 UNAUTHORIZED | Не покрыто — отложено владельцем |
-| JWT-006 | Корректно подписанный JWT с неверным iss/aud | По контракту 401 UNAUTHORIZED | Не покрыто — отложено владельцем |
+<a id="booking-payment-empty-auth"></a>
 
-JWT-001–004 параметризованы по трём операциям: всего **12 случаев**. После каждого отказа исходный действующий токен по-прежнему открывает профиль. Ключ подписи не читается и не используется; дополнительных зависимостей нет. Изменённая подпись не является проверкой exp/iss/aud: сервер может отказать до обработки этих полей. Эти проверки не заменяют полную матрицу всех защищённых операций и не доказывают отсутствие записи отеля прямым подсчётом БД.
+[Бронирования и платежи](../tests/test_booking_payment_authorization.py) проверяются без заголовка `Authorization` и с пустым Bearer. Тесты различают эти варианты по фактически отправленному запросу и ожидают `401 UNAUTHORIZED`.
 
 <a id="admin-operations-access"></a>
 
-## Запрет административных операций обычному пользователю
-
-Основание: [контракт API](api-specification.md). Модуль: [test_admin_operations_access.py](../tests/test_admin_operations_access.py). Используется действующий JWT активного пользователя; отдельная локальная фикстура проверяет его фактическую роль `user` через GET профиля. Ресурсы существуют, тела валидны, бронирований, мешающих архивированию, нет: проверяется именно право на операцию.
-
-| ID | Операция / попытка | Ожидаемый результат | Покрытие |
-|---|---|---|---|
-| ADM-001 | POST /hotels | 403 FORBIDDEN; в уникальном городе не появляется отель | Покрыто |
-| ADM-002 | PUT /hotels/{id} | 403; отель и его номер неизменны | Покрыто |
-| ADM-003 | DELETE /hotels/{id} | 403; отель и номер остаются неархивными, доступны для чтения | Покрыто |
-| ADM-004 | POST /hotels/{id}/rooms | 403; список номеров и total неизменны | Покрыто |
-| ADM-005 | PUT /rooms/{id} | 403; цена и остальные данные номера неизменны | Покрыто |
-| ADM-006 | PATCH /rooms/{id}/availability | 403; номер остаётся включённым | Покрыто |
-| ADM-007 | DELETE /rooms/{id} | 403; номер неизменен и доступен для чтения | Покрыто |
-| ADM-008 | GET /admin/users | 403; email текущего пользователя не отражается; контрольный admin-запрос успешен | Покрыто |
-| ADM-009 | GET /admin/users/{id}, цель — сам пользователь или другой user | 403 в обоих случаях; admin успешно читает существующий ID | Покрыто |
-| ADM-010 | PATCH /admin/users/{id}, цель self/other, изменение role=admin или is_active=false | 403 в четырёх случаях; admin перечитывает неизменённые данные, токен цели сохраняет доступ и роль user | Покрыто |
-
-Всего **14 новых случаев для 10 операций**. Во всех отказах проверяются ERROR_SCHEMA, код FORBIDDEN и совпадение request ID. Сохранность проверяется через GET API; запрет создания — через контролируемую выборку. SQL-подсчёт и конкуренция не проверяются.
-
-Проверки административных операций с действующим JWT описаны в разделе ниже. Негативные варианты JWT для всех этих операций не покрыты.
+[Доступ к административным операциям](../tests/test_admin_operations_access.py) проверяется с действующим токеном обычного пользователя. Изменения отелей, номеров, ролей и активности должны отклоняться без изменения ресурсов.
 
 <a id="admin-users"></a>
 
 ## Администрирование пользователей
 
-Основания: [FR-01](requirements.md#fr-01-пользователи-и-авторизация), [контракт admin/users](api-specification.md#администрирование-пользователей). Модули: [test_admin_users.py](../tests/test_admin_users.py), [test_last_admin.py](../tests/test_last_admin.py).
-
-| ID | Проверки | Ожидаемые результаты | Покрытие |
-|---|---|---|---|
-| AU-001 | Чтение собственноручно зарегистрированного пользователя через admin GET | 200, точное совпадение полей; нет password/password_hash и исходного пароля, есть X-Request-ID | Покрыто |
-| AU-002 | Список с каждой комбинацией role user/admin и is_active true/false | Собственный контрольный пользователь в выборке; все записи соответствуют фильтрам, секретные поля отсутствуют | Покрыто |
-| AU-003 | created_at/email в обе стороны, default сортировка | Упорядоченные значения; UUID по возрастанию при равенстве | Покрыто |
-| AU-004 | Страницы с limit=2, offset=0/2; offset=total, default параметры | Страницы соответствуют исходному срезу limit=4, без дубликатов; пустая страница за пределами, default 20/0 | Покрыто |
-| AU-005 | Неверные query и sort | 422, код/схема/request ID; для ошибок query проверяется поле | Покрыто |
-| AU-006 | Повысить обычного пользователя до admin и понизить обратно, сохраняя его JWT | Старый токен получает admin-доступ после повышения и 403 после понижения; профиль сохраняет доступ как user | Покрыто |
-| AU-007 | Отключить пользователя с бронью и платежом, затем включить | Старый JWT получает 401 при отключении; admin читает неизменные бронь/платёж; после включения работают старый JWT и новый login | Покрыто |
-| AU-008 | Одновременно изменить роль и активность | 200, оба значения сохранены; ID, email, имя, телефон, created_at не меняются | Покрыто |
-| AU-009 | Неверные/null/лишние поля и JSON-тела PATCH | 422, исходный пользователь полностью неизменен, в том числе при сочетании валидной role и недопустимого поля | Покрыто |
-| AU-010 | GET/PATCH с неизвестным или неверным UUID; три операции без/с неверным JWT | 404/422 по контракту ID; 401 с WWW-Authenticate, пользователь неизменен | Покрыто |
-| AU-011 | Понизить/отключить/понизить и отключить последнего активного admin | 409 LAST_ACTIVE_ADMIN; профиль неизменен, в списке ровно один активный admin | Покрыто — отдельный API |
-
-На основном стенде изменяются только созданные тестами пользователи. Фикстура managed_user в teardown возвращает своему пользователю role=user/is_active=true; общие seed-администраторы не изменяются. Фильтрация использует собственную последнюю запись и sort=-created_at; сортировка и пагинация проверяются на спокойном стенде без сторонних изменений. Это не проверка точного глобального состава всех пользователей.
+[Тесты администрирования](../tests/test_admin_users.py) проверяют фильтры, сортировку, пагинацию, чтение без секретов, изменение роли и активности, валидацию и неизвестный ID. Изменения влияют на права уже выданного токена. Брони и платежи сохраняются при отключении пользователя.
 
 ### Отдельный запуск защиты последнего admin
+
+[Три сценария](../tests/test_last_admin.py) проверяют запрет понижения роли, отключения и обоих действий сразу. API возвращает `409 LAST_ACTIVE_ADMIN`, а последний активный администратор сохраняет роль и статус.
+
+В CI это финальная фаза `full` на одноразовом стенде. Для локального запуска скрипт создаёт отдельный API и БД, оставляет одного активного администратора и удаляет свои контейнеры после проверки. Нужны Docker и образы `hotel-booking-api` и `postgres:17-alpine`.
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/run_last_admin_tests.py
 ```
 
-[Скрипт](../scripts/run_last_admin_tests.py) требует Docker и локальные образы hotel-booking-api и postgres:17-alpine. Создаёт собственную сеть, временную PostgreSQL с tmpfs и отдельный API на случайном localhost-порту. Пароли и JWT-ключ генерируются заново для этого стенда, секреты основного API не читаются. После миграций/seed скрипт понижает дополнительных seed-admin только внутри своей БД и запускает три проверки; finally удаляет созданные контейнеры и сеть.
-
-Тесты отмечены isolated_admin и без ISOLATED_ADMIN_API_URL явно пропускаются. Для заранее подготовленного отдельного стенда дополнительно нужны ISOLATED_ADMIN_EMAIL/PASSWORD; там должен уже оставаться ровно один активный admin. При ручном запуске pytest тесты требуют отдельный URL. Переменные временного запуска не записываются в `.env`.
-
-В GitHub Actions режим `full` сначала выполняет `-m "not isolated_admin"`, затем запускает скрипт с `--reuse-ci-stand`. Этот режим рассчитан на одноразовый стенд на GitHub-hosted runner. Скрипт оставляет одного активного администратора через API и запускает `-m isolated_admin` на том же URL. Результаты добавляются в общий Allure, а JUnit второй фазы сохраняется отдельно в `junit-last-admin.xml`. После обеих фаз CI удаляет контейнеры и том стенда.
-
-Границы покрытия: конкурентные изменения, полная схема ответов и полный глобальный каталог пользователей.
-
-<a id="booking-payment-empty-auth"></a>
-
-## Бронирования и платежи без токена и с пустым Bearer
-
-Модуль [test_booking_payment_authorization.py](../tests/test_booking_payment_authorization.py). Только два варианта: token=None (нет Authorization) и token="" (Authorization: Bearer с пустым значением). Тест проверяет реальные отправленные заголовки через PreparedRequest, чтобы эти случаи не смешивались. Требование — [401 UNAUTHORIZED](api-specification.md#основные-ошибки-и-ограничения).
-
-| ID | Операции / проверки | Ожидаемый результат |
-|---|---|---|
-| BP-AUTH-001 | POST /bookings с валидными телом и Idempotency-Key | 401, список владельца пуст, номер свободен; повтор с действующим токеном и тем же ключом создаёт единственную бронь без replay |
-| BP-AUTH-002 | POST /bookings/{id}/payments для существующей pending_payment-брони без платежа | 401, бронь неизменна; владелец затем успешно создаёт pending-платёж, который перечитывается без изменений |
-| BP-AUTH-003 | GET /bookings/{id}, PATCH /bookings/{id}/cancel, GET /payments/{id}, POST simulate-success и simulate-failure | 401, существующие pending_payment-бронь и pending-платёж полностью неизменны при чтении действующим токеном владельца |
-
-Каждая операция проверяется в двух вариантах — **14 новых случаев на семи операциях**. GET /bookings уже имеет оба варианта в существующем test_authorization.py и повторно не добавлялся. Во всех ответах — ERROR_SCHEMA, UNAUTHORIZED, совпадающий request ID, WWW-Authenticate: Bearer. Существующие ресурсы и валидные тела исключают маскировку ошибки авторизации ошибкой ID, JSON или состояния.
-
-Границы: новые тесты не проверяют повреждённую подпись, неверный формат или claims JWT; существующие проверки этих вариантов не удалялись. SQL-подсчёт записей не выполняется: отсутствие нежелательного удержания/pending-платежа проверяется успешной операцией владельца и API-чтением. Приложение, API-клиенты, общие фикстуры и зависимости не менялись.
+Пробелы: конкурентное изменение ролей и активности, полная схема ответов административного API.

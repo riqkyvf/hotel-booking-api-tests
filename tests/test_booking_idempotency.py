@@ -1,3 +1,4 @@
+from datetime import datetime
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -6,6 +7,7 @@ import pytest
 from api.bookings import cancel_booking, create_booking, get_booking, list_bookings
 from api.payments import create_payment, get_payment, simulate_payment_success
 from api.rooms import get_room_availability
+from db import move_booking_expiry_to_past
 from tests.assertions import assert_api_error
 
 
@@ -136,3 +138,33 @@ def test_replay_after_payment_preserves_confirmed_booking(
     page = bookings.json()
     assert page["total"] == 1
     assert [item["id"] for item in page["items"]] == [booking["id"]]
+
+
+@pytest.mark.db
+def test_replay_after_expiration_preserves_expired_booking(
+    base_url, database_url, idempotent_booking, user_access_token,
+):
+    original = idempotent_booking["booking"]
+    booking_id = original["id"]
+    expires_at = move_booking_expiry_to_past(database_url, booking_id, original["user_id"])
+    before_replay = get_booking(base_url, user_access_token, booking_id)
+    assert before_replay.status_code == 200, before_replay.text
+    expired = before_replay.json()
+    assert expired["status"] == "expired"
+    assert datetime.fromisoformat(expired["expires_at"]) == expires_at
+
+    replay = create_booking(
+        base_url, user_access_token, idempotent_booking["payload"], idempotent_booking["key"],
+    )
+    assert replay.status_code == 201, replay.text
+    assert replay.json() == original
+    assert replay.headers.get("Idempotency-Replayed", "").lower() == "true"
+    assert replay.headers.get("Location") == idempotent_booking["location"]
+
+    saved = get_booking(base_url, user_access_token, booking_id)
+    assert saved.status_code == 200, saved.text
+    assert saved.json() == expired
+    bookings = list_bookings(base_url, user_access_token)
+    assert bookings.status_code == 200, bookings.text
+    assert bookings.json()["total"] == 1
+    assert [item["id"] for item in bookings.json()["items"]] == [booking_id]
