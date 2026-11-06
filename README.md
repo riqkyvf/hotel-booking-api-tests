@@ -4,9 +4,7 @@
 
 Автотесты для [Hotel Booking API](https://github.com/riqkyvf/hotel-booking-api) на **Python, pytest и requests**. Набор проверяет 29 операций: регистрацию и права доступа, отели и номера, доступность, бронирования, платежи и health. Сценарии охватывают конкуренцию, повторы с `Idempotency-Key` и переходы состояний с проверкой в PostgreSQL.
 
-**Подтверждённый `full` от 6 ноября 2026 — 1128 passed.** Три проверки последнего администратора в том запуске были исключены. В текущем workflow они вынесены в финальную фазу `full`. [Запуск CI](https://github.com/riqkyvf/hotel-booking-api-tests/actions/runs/42189739527) · [Allure и JUnit в артефакте](https://github.com/riqkyvf/hotel-booking-api-tests/actions/runs/42189739527/artifacts/13489691502)
-
-[Карта покрытия](docs/README.md#карта-покрытия-api) · [Состав smoke](docs/README.md#smoke-suite) · [Журнал прогонов](docs/test-runs.md)
+[Запуски CI и артефакты Allure](https://github.com/riqkyvf/hotel-booking-api-tests/actions/workflows/api-tests.yml) · [Карта покрытия](docs/README.md#карта-покрытия-api) · [Состав smoke](docs/README.md#smoke-suite)
 
 ## Быстрый старт
 
@@ -63,4 +61,4 @@ npm.cmd exec --yes --package=allure-commandline@2.46.1 -- allure generate artifa
 | `data/`, `schemas/` | Наборы параметров и JSON Schema ответов |
 | `db.py` | SQL-подготовка дат и чтение истории состояний |
 | `scripts/` | Локальный запуск проверок последнего админа и сводка CI |
-| `docs/` | Контракт, карта покрытия, сценарии и результаты прогонов |
+| `docs/` | Контракт, карта покрытия и сценарии |
