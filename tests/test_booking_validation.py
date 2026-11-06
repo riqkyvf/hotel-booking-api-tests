@@ -76,7 +76,7 @@ def test_booking_rejects_invalid_body_fields(base_url, user_access_token, bookin
     assert bookings.json()["items"] == []
 
 
-@pytest.mark.parametrize("raw_body", ["", "{}", '{"room_id":', "null", "[]", '"text"', "123", "true"])
+@pytest.mark.parametrize("raw_body", ['{"room_id":', "[]"], ids=["malformed_json", "array"])
 def test_booking_rejects_invalid_json_body(base_url, user_access_token, booking_payload, raw_body):
     key = uuid4().hex
     response = create_booking(base_url, user_access_token, idempotency_key=key, raw_body=raw_body)

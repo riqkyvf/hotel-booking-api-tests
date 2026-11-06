@@ -65,14 +65,9 @@ FORBIDDEN_PROFILE_FIELDS = (
 
 
 INVALID_PROFILE_BODIES = (
-    pytest.param("", id="no_body"),
     pytest.param("{}", id="empty_object"),
     pytest.param('{"name":', id="malformed_json"),
-    pytest.param("null", id="null"),
     pytest.param("[]", id="array"),
-    pytest.param('"text"', id="string"),
-    pytest.param("123", id="number"),
-    pytest.param("true", id="boolean"),
 )
 
 

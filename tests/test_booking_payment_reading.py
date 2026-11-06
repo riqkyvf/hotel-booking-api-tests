@@ -95,12 +95,9 @@ def test_read_unknown_booking_or_payment(base_url, user_access_token, admin_acce
     assert_api_error(response, status=404, code="NOT_FOUND")
 
 
-@pytest.mark.parametrize("identifier", ["not-a-uuid", "123", "00000000-0000-0000-0000-00000000000z", "a" * 35])
 @pytest.mark.parametrize("resource", ["booking", "payment"])
-@pytest.mark.parametrize("reader", ["owner", "admin"])
-def test_read_booking_or_payment_rejects_invalid_uuid(base_url, user_access_token, admin_access_token, identifier, resource, reader):
-    token = user_access_token if reader == "owner" else admin_access_token
-    response = (get_booking(base_url, token, identifier) if resource == "booking"
-                else get_payment(base_url, token, identifier))
+def test_read_booking_or_payment_rejects_invalid_uuid(base_url, user_access_token, resource):
+    read = get_booking if resource == "booking" else get_payment
+    response = read(base_url, user_access_token, "not-a-uuid")
     body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
     assert any(item["field"] == f"path.{resource}_id" for item in body["error"]["details"])

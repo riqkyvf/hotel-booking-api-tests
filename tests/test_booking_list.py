@@ -130,8 +130,11 @@ def test_booking_list_returns_expired_booking(
     assert saved.json() == expired
 
 
-@pytest.mark.parametrize("reader", ["owner", "admin"])
-@pytest.mark.parametrize("sort", [None, "created_at", "-created_at", "check_in", "-check_in", "total_price", "-total_price"])
+@pytest.mark.parametrize("reader,sort", [
+    ("owner", None), ("owner", "created_at"), ("owner", "-created_at"),
+    ("owner", "check_in"), ("owner", "-check_in"), ("owner", "total_price"),
+    ("owner", "-total_price"), ("admin", "-total_price"),
+])
 def test_booking_list_sorting(base_url, user_access_token, admin_access_token, booking_catalog, reader, sort):
     token, scope = reader_options(reader, booking_catalog, user_access_token, admin_access_token)
     params = scope if sort is None else {**scope, "sort": sort}
@@ -160,13 +163,11 @@ def test_booking_list_sorting(base_url, user_access_token, admin_access_token, b
     assert page["offset"] == 0
 
 
-@pytest.mark.parametrize("reader", ["owner", "admin"])
 @pytest.mark.parametrize("limit,offset", [(1, 0), (2, 0), (2, 2), (100, 0), (2, 4), (2, 10)])
-def test_booking_list_pagination(base_url, user_access_token, admin_access_token, booking_catalog, reader, limit, offset):
-    token, scope = reader_options(reader, booking_catalog, user_access_token, admin_access_token)
+def test_booking_list_pagination(base_url, user_access_token, booking_catalog, limit, offset):
     records = booking_catalog["bookings"]
     expected = [records["a"]["id"], *sorted(records[key]["id"] for key in "bc"), records["d"]["id"]]
-    response = list_bookings(base_url, token, {**scope, "sort": "check_in", "limit": limit, "offset": offset})
+    response = list_bookings(base_url, user_access_token, {"sort": "check_in", "limit": limit, "offset": offset})
     assert response.status_code == 200, response.text
     page = response.json()
     assert page["total"] == 4

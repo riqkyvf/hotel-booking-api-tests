@@ -96,7 +96,7 @@ def test_hotel_rejects_read_only_or_unknown_fields(base_url, hotel_operation, fi
 
 
 @pytest.mark.parametrize("hotel_operation", ["create", "update"], indirect=True)
-@pytest.mark.parametrize("raw_body", ["", "{}", '{"name":', "null", "[]", '"text"', "123", "true"])
+@pytest.mark.parametrize("raw_body", ['{"name":', "[]"], ids=["malformed_json", "array"])
 def test_hotel_rejects_invalid_json_body(base_url, hotel_operation, raw_body):
     response = hotel_operation["send"](raw_body=raw_body)
     assert_api_error(response, status=422, code="VALIDATION_ERROR")

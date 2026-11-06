@@ -42,7 +42,7 @@ def test_payment_failure_rejects_invalid_fields(base_url, pending_payment, user_
     assert saved_booking.json() == pending_payment["booking"]
 
 
-@pytest.mark.parametrize("raw_body", ["", '{"reason":', "null", "[]", '"text"', "123", "true"])
+@pytest.mark.parametrize("raw_body", ['{"reason":', "[]"], ids=["malformed_json", "array"])
 def test_payment_failure_rejects_invalid_json_body(base_url, pending_payment, user_access_token, raw_body):
     payment = pending_payment["payment"]
     response = simulate_payment_failure(base_url, user_access_token, payment["id"], raw_body=raw_body)

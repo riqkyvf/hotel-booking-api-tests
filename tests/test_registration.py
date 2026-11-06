@@ -367,8 +367,8 @@ def test_register_with_extra_field(base_url, user_data, field, value):
 
 @pytest.mark.parametrize(
     "body",
-    ["", "{}", '{"email":'],
-    ids=["no_body", "empty_object", "malformed_json"],
+    ["", '{"email":', "[]"],
+    ids=["no_body", "malformed_json", "array"],
 )
 def test_register_with_invalid_body(base_url, body):
     response = register(base_url, raw_body=body)

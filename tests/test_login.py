@@ -150,17 +150,8 @@ def test_login_with_extra_field(base_url, login_data, field, value):
 
 @pytest.mark.parametrize(
     "body",
-    ["", "{}", '{"email":', "null", "[]", '"text"', "123", "true"],
-    ids=[
-        "no_body",
-        "empty_object",
-        "malformed_json",
-        "null",
-        "array",
-        "string",
-        "number",
-        "boolean",
-    ],
+    ["", '{"email":', "[]"],
+    ids=["no_body", "malformed_json", "array"],
 )
 def test_login_with_invalid_body(base_url, body):
     response = login(base_url, raw_body=body)

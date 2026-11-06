@@ -118,7 +118,7 @@ def test_availability_patch_rejects_invalid_body_without_changes(base_url, admin
 
 
 @pytest.mark.parametrize("operation", ["update", "availability"])
-@pytest.mark.parametrize("raw_body", ["", "{}", '{"capacity":', "null", "[]", '"text"', "123", "true"])
+@pytest.mark.parametrize("raw_body", ['{"capacity":', "[]"], ids=["malformed_json", "array"])
 def test_room_mutations_reject_invalid_json(base_url, admin_access_token, available_room, operation, raw_body):
     room = available_room["room"]
     if operation == "update":

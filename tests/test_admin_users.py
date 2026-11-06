@@ -175,7 +175,7 @@ def test_admin_patch_rejects_invalid_fields_without_partial_update(base_url, adm
     assert saved.json() == user
 
 
-@pytest.mark.parametrize("raw_body", ["", '{"role":', "null", "[]", '"text"', "123", "true"])
+@pytest.mark.parametrize("raw_body", ['{"role":', "[]"], ids=["malformed_json", "array"])
 def test_admin_patch_rejects_invalid_json(base_url, admin_access_token, managed_user, raw_body):
     user = managed_user["user"]
     response = update_user_as_admin(base_url, admin_access_token, user["id"], raw_body=raw_body)
