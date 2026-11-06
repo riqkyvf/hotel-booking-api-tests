@@ -1,3 +1,4 @@
+import allure
 import pytest
 
 from api.auth import login, register
@@ -6,36 +7,39 @@ from data.auth import ASCII_EMAIL_DOMAINS, VALID_ASCII_PASSWORD_CASES
 
 
 @pytest.mark.smoke
+@allure.title("Зарегистрированный пользователь может войти и открыть профиль")
 def test_registered_user_can_login_and_get_profile(base_url, registered_user):
-    login_response = login(
-        base_url,
-        {
-            "email": registered_user["payload"]["email"],
-            "password": registered_user["payload"]["password"],
-        },
-    )
+    with allure.step("Войти с данными зарегистрированного пользователя"):
+        login_response = login(
+            base_url,
+            {
+                "email": registered_user["payload"]["email"],
+                "password": registered_user["payload"]["password"],
+            },
+        )
 
-    assert login_response.status_code == 200, login_response.text
+        assert login_response.status_code == 200, login_response.text
 
-    access_token = login_response.json()["access_token"]
+        access_token = login_response.json()["access_token"]
 
-    assert isinstance(access_token, str)
-    assert access_token
+        assert isinstance(access_token, str)
+        assert access_token
 
-    profile_response = get_profile(base_url, access_token)
+    with allure.step("Прочитать и проверить собственный профиль"):
+        profile_response = get_profile(base_url, access_token)
 
-    assert profile_response.status_code == 200, profile_response.text
+        assert profile_response.status_code == 200, profile_response.text
 
-    user = profile_response.json()
+        user = profile_response.json()
 
-    assert user["id"] == registered_user["user"]["id"]
-    assert user["email"] == registered_user["payload"]["email"]
-    assert user["name"] == registered_user["payload"]["name"]
-    assert user["phone"] is None
-    assert user["role"] == "user"
-    assert user["is_active"] is True
-    assert "password" not in user
-    assert "password_hash" not in user
+        assert user["id"] == registered_user["user"]["id"]
+        assert user["email"] == registered_user["payload"]["email"]
+        assert user["name"] == registered_user["payload"]["name"]
+        assert user["phone"] is None
+        assert user["role"] == "user"
+        assert user["is_active"] is True
+        assert "password" not in user
+        assert "password_hash" not in user
 
 
 def test_duplicate_registration_does_not_change_user(base_url, registered_user):

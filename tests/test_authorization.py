@@ -1,5 +1,6 @@
 import base64
 
+import allure
 import pytest
 
 from api.bookings import list_bookings
@@ -14,6 +15,7 @@ from tests.assertions import assert_api_error
     "empty", "malformed", "invalid_signature",
 ])
 @pytest.mark.parametrize("operation", ["profile", "bookings", "admin_create_hotel"])
+@allure.title("Защищённая операция отклоняет запрос: {param_id}")
 def test_protected_operations_reject_invalid_credentials(
     base_url, user_access_token, token_kind, operation,
 ):

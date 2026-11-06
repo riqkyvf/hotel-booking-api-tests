@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
+import allure
 import pytest
 
 from api.bookings import create_booking, get_booking, list_bookings
@@ -54,6 +55,7 @@ def blocking_booking(base_url, available_room, overlap_stay, user_access_token, 
 
 
 @pytest.mark.parametrize("start_offset,end_offset", OVERLAPPING_STAYS)
+@allure.title("Занятый номер нельзя забронировать на пересекающиеся даты ({param_id})")
 def test_overlapping_booking_is_rejected(
     base_url, available_room, overlap_stay, blocking_booking, second_user, user_access_token,
     start_offset, end_offset,
@@ -65,27 +67,30 @@ def test_overlapping_booking_is_rejected(
         "guests": overlap_stay["guests"],
     }
     room_id = available_room["room"]["id"]
-    availability = get_room_availability(base_url, room_id, stay)
-    assert availability.status_code == 200, availability.text
-    body = availability.json()
-    assert body["room_id"] == room_id
-    assert body["available"] is False
-    assert body["reason"] == "ROOM_NOT_AVAILABLE"
+    with allure.step("Проверить недоступность пересекающихся дат"):
+        availability = get_room_availability(base_url, room_id, stay)
+        assert availability.status_code == 200, availability.text
+        body = availability.json()
+        assert body["room_id"] == room_id
+        assert body["available"] is False
+        assert body["reason"] == "ROOM_NOT_AVAILABLE"
 
-    response = create_booking(
-        base_url, second_user["access_token"], {"room_id": room_id, **stay}, uuid4().hex
-    )
-    assert_api_error(response, status=409, code="ROOM_NOT_AVAILABLE")
+    with allure.step("Попытаться создать бронь другим пользователем"):
+        response = create_booking(
+            base_url, second_user["access_token"], {"room_id": room_id, **stay}, uuid4().hex
+        )
+        assert_api_error(response, status=409, code="ROOM_NOT_AVAILABLE")
 
-    bookings = list_bookings(base_url, second_user["access_token"])
-    assert bookings.status_code == 200, bookings.text
-    page = bookings.json()
-    assert page["total"] == 0
-    assert page["items"] == []
+    with allure.step("Проверить отсутствие новой брони и сохранность исходной"):
+        bookings = list_bookings(base_url, second_user["access_token"])
+        assert bookings.status_code == 200, bookings.text
+        page = bookings.json()
+        assert page["total"] == 0
+        assert page["items"] == []
 
-    original = get_booking(base_url, user_access_token, blocking_booking["id"])
-    assert original.status_code == 200, original.text
-    assert original.json() == blocking_booking
+        original = get_booking(base_url, user_access_token, blocking_booking["id"])
+        assert original.status_code == 200, original.text
+        assert original.json() == blocking_booking
 
 
 @pytest.mark.parametrize("start_offset,end_offset", ADJACENT_STAYS)

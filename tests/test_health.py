@@ -1,3 +1,4 @@
+import allure
 import pytest
 
 from api.health import get_liveness, get_readiness
@@ -8,6 +9,7 @@ from api.health import get_liveness, get_readiness
     pytest.param(get_readiness, "ready", id="ready"),
 ])
 @pytest.mark.smoke
+@allure.title("Проверка состояния API возвращает 200 ({param_id})")
 def test_health_returns_success(base_url, request_health, expected_status):
     response = request_health(base_url)
 

@@ -1,5 +1,6 @@
 import os
 
+import allure
 import pytest
 
 from api.auth import login
@@ -41,14 +42,18 @@ def isolated_admin():
 @pytest.mark.isolated_admin
 @pytest.mark.parametrize("change", [{"role": "user"}, {"is_active": False}, {"role": "user", "is_active": False}],
                          ids=["demote", "disable", "demote_and_disable"])
+@allure.title("Последний активный администратор сохраняет доступ ({param_id})")
 def test_last_active_admin_cannot_be_removed(isolated_admin, change):
     url, token, user = isolated_admin["url"], isolated_admin["token"], isolated_admin["user"]
-    response = update_user_as_admin(url, token, user["id"], change)
-    assert_api_error(response, status=409, code="LAST_ACTIVE_ADMIN")
-    saved = get_user_as_admin(url, token, user["id"])
-    assert saved.status_code == 200, saved.text
-    assert saved.json() == user
-    admins = list_users_as_admin(url, token, {"role": "admin", "is_active": True})
-    assert admins.status_code == 200, admins.text
-    assert admins.json()["total"] == 1
-    assert [item["id"] for item in admins.json()["items"]] == [user["id"]]
+    with allure.step("Попытаться изменить роль или активность последнего администратора"):
+        response = update_user_as_admin(url, token, user["id"], change)
+        assert_api_error(response, status=409, code="LAST_ACTIVE_ADMIN")
+
+    with allure.step("Проверить, что администратор сохранил роль и активность"):
+        saved = get_user_as_admin(url, token, user["id"])
+        assert saved.status_code == 200, saved.text
+        assert saved.json() == user
+        admins = list_users_as_admin(url, token, {"role": "admin", "is_active": True})
+        assert admins.status_code == 200, admins.text
+        assert admins.json()["total"] == 1
+        assert [item["id"] for item in admins.json()["items"]] == [user["id"]]

@@ -1,6 +1,7 @@
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+import allure
 import pytest
 from jsonschema import validate
 
@@ -82,6 +83,7 @@ def archived_catalog_hotel(base_url, admin_access_token, hotel_catalog):
 
 
 @pytest.mark.smoke
+@allure.title("Каталог отелей возвращает страницу по умолчанию")
 def test_hotels_default_pagination(base_url):
     response = list_hotels(base_url)
 
@@ -325,6 +327,7 @@ def test_hotels_invalid_sort(base_url, sort):
 
 @pytest.mark.parametrize("role", HOTEL_READER_ROLES)
 @pytest.mark.smoke
+@allure.title("Детали отеля доступны для роли {role}")
 def test_get_hotel_for_each_role(
     base_url, hotel, user_access_token, admin_access_token, role
 ):

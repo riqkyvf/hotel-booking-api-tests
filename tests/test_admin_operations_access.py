@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import allure
 import pytest
 
 from api.hotels import archive_hotel, create_hotel, get_hotel, list_hotels, update_hotel
@@ -23,6 +24,7 @@ def ordinary_user_profile(base_url, user_access_token):
 
 
 @pytest.mark.smoke
+@allure.title("Обычный пользователь не может создать отель")
 def test_user_cannot_create_hotel(base_url, user_access_token, ordinary_user_profile):
     city = f"Forbidden_{uuid4().hex}"
     payload = {**HOTEL_TEMPLATE, "city": city}
