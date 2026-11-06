@@ -81,6 +81,7 @@ jobs:
           } > artifacts/allure-results/environment.properties
 
       - name: Start API and wait for readiness
+        id: stand
         working-directory: hotel-api
         run: |
           docker compose up --build --wait --wait-timeout 180
@@ -95,6 +96,10 @@ jobs:
           esac
           python -m pytest -m "$markers" -q --tb=short --durations=15 \
             --junitxml=artifacts/junit.xml --alluredir=artifacts/allure-results --allure-no-capture
+
+      - name: Test last active administrator
+        if: ${{ !cancelled() && env.SUITE == 'full' && steps.stand.outcome == 'success' }}
+        run: python scripts/run_last_admin_tests.py --reuse-ci-stand
 
       - name: Generate Allure HTML
         if: ${{ !cancelled() && hashFiles('artifacts/allure-results/*-result.json') != '' }}
@@ -116,6 +121,7 @@ jobs:
           path: |
             artifacts/allure-report/index.html
             artifacts/junit.xml
+            artifacts/junit-last-admin.xml
             artifacts/compose.log
           if-no-files-found: warn
           retention-days: 14

@@ -9,7 +9,7 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def isolated_admin():
-    """Opt-in endpoint: the caller must provide a separate, disposable test API."""
+    """Opt-in endpoint for a disposable API prepared with one active admin."""
     url = os.getenv("ISOLATED_ADMIN_API_URL")
     if not url:
         pytest.skip("Set ISOLATED_ADMIN_API_URL/EMAIL/PASSWORD for a disposable API with one active admin")
@@ -18,7 +18,14 @@ def isolated_admin():
     if not email or not password:
         pytest.fail("Set ISOLATED_ADMIN_EMAIL and ISOLATED_ADMIN_PASSWORD", pytrace=False)
     url = url.rstrip("/")
-    assert url != os.getenv("API_BASE_URL", "http://localhost:8000/api/v1").rstrip("/"), "Use a separate API"
+    reuse_ci_stand = (
+        os.getenv("ISOLATED_ADMIN_REUSE_CI_STAND") == "1"
+        and os.getenv("GITHUB_ACTIONS") == "true"
+        and os.getenv("RUNNER_ENVIRONMENT") == "github-hosted"
+        and os.getenv("SUITE") == "full"
+    )
+    main_url = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1").rstrip("/")
+    assert reuse_ci_stand or url != main_url, "Use a separate disposable API outside full CI"
     response = login(url, {"email": email, "password": password})
     assert response.status_code == 200, "Isolated admin login failed"
     token = response.json()["access_token"]

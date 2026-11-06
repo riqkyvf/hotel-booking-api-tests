@@ -169,11 +169,11 @@ Copy-Item .env.example .env
 
 ### Запуск в GitHub Actions
 
-[API tests](.github/workflows/api-tests.yml) запускает smoke на pull request в `main`. Для ручного запуска откройте **Actions → API tests → Run workflow** и выберите `smoke` или `full`. Режим `full` включает DB-тесты. Три проверки с меткой `isolated_admin` запускаются отдельно по инструкции выше.
+[API tests](.github/workflows/api-tests.yml) запускает smoke на pull request в `main`. Для ручного запуска откройте **Actions → API tests → Run workflow** и выберите `smoke` или `full`. Режим `full` включает DB-тесты. После основной регрессии отдельный шаг **Test last active administrator** оставляет одного активного администратора на том же временном стенде и запускает три проверки `isolated_admin`.
 
 Каждый запуск скачивает приложение по коммиту, указанному в шаге **Check out API**. Compose поднимает отдельный PostgreSQL, выполняет миграции и seed, запускает API и worker. Workflow ждёт готовности стенда и удаляет его том после прогона. Пароли и ключ подписи генерируются для этого стенда, поэтому настройки секретов репозитория не требуются.
 
-В завершённом запуске скачайте артефакт `api-tests-smoke` или `api-tests-full` и откройте `allure-report/index.html` из распакованного архива. Рядом лежат `junit.xml` и `compose.log`. Отчёт и JUnit сохраняются после падений тестов, если pytest успел записать результаты. При сбое запуска стенда для диагностики служит `compose.log`. Артефакты хранятся 14 дней.
+В завершённом запуске скачайте артефакт `api-tests-smoke` или `api-tests-full` и откройте `allure-report/index.html` из распакованного архива. Рядом лежат `junit.xml` и `compose.log`. В режиме `full` Allure объединяет обе фазы, а `junit-last-admin.xml` содержит отдельный результат второй фазы. Отчёт и JUnit сохраняются после падений тестов, если pytest успел записать результаты. При сбое запуска стенда для диагностики служит `compose.log`. Артефакты хранятся 14 дней.
 
 Для локального Allure-отчёта установите зависимости из `requirements.txt`. С запущенным стендом выполните smoke и сгенерируйте HTML. Для второй команды нужны Node.js и Java.
 
