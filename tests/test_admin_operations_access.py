@@ -23,7 +23,6 @@ def ordinary_user_profile(base_url, user_access_token):
     return profile
 
 
-@pytest.mark.smoke
 @pytest.mark.usefixtures("ordinary_user_profile")
 @allure.title("Обычный пользователь не может создать отель")
 def test_user_cannot_create_hotel(base_url, user_access_token):

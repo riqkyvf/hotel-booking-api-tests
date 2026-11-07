@@ -13,70 +13,68 @@
 | [Бронирование и платежи](testing-bookings.md) | Основной путь, ограничения, отмена, истечение, доступ и повторы |
 | [GitHub Actions](https://github.com/riqkyvf/hotel-booking-api-tests/actions/workflows/api-tests.yml) | Результаты CI, коммиты и артефакты Allure |
 
-[Документы о контракте API и БД](#контракт)
+[Локальный отчёт Allure](#локальный-отчёт-allure) · [Документы о контракте API и работе с БД](#контракт)
 
 ## Карта покрытия API
 
-Карта сопоставляет [29 операций спецификации](api-specification.md) с проверками в `tests/`. Общий префикс путей — `/api/v1`.
-
-Набор проверяет пользовательские и административные сценарии, включая изоляцию данных, повторы с `Idempotency-Key`, конкурентные запросы и историю переходов в PostgreSQL.
+Карта сопоставляет [29 операций спецификации](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/api-specification.md) с проверками в `tests/`. Общий префикс путей — `/api/v1`.
 
 ### Пользователи и авторизация
 
 | Операция | Что проверяется и где |
 |---|---|
-| POST `/auth/register` | Нормализация, валидация, дубликаты и создание профиля. [Тесты](testing-auth.md#registration-checklist) |
-| POST `/auth/login` | Вход, валидация, неверные данные и отключённый пользователь. [Тесты](testing-auth.md#login-checklist) |
-| GET `/users/me` | Данные владельца, доступ с JWT и деактивация. [Тесты](testing-auth.md#authorization) |
-| PATCH `/users/me` | Частичное изменение, очистка телефона, конфликт email и отказ без изменений. [Тесты](testing-auth.md#profile-checklist) |
+| POST `/auth/register` | Создание пользователя и валидация. [Сценарии](testing-auth.md#registration-checklist) |
+| POST `/auth/login` | Выдача токена и отказы во входе. [Сценарии](testing-auth.md#login-checklist) |
+| GET `/users/me` | Профиль и доступ с JWT. [Сценарии](testing-auth.md#authorization) |
+| PATCH `/users/me` | Частичное обновление и сохранность профиля при отказе. [Сценарии](testing-auth.md#profile-checklist) |
 
 ### Отели
 
 | Операция | Что проверяется и где |
 |---|---|
-| GET `/hotels` | Фильтры, цены, сортировка, две страницы и пустая выдача, архивность. [Тесты](testing-hotels.md#hotels-checklist) |
-| GET `/hotels/{hotel_id}` | Схема ответа, ошибки ID и доступ к архивным отелям по ролям. [Тесты](testing-hotels.md#hotels-checklist) |
-| POST `/hotels` | Создание, валидация, сохранение и права. [Тесты](testing-hotels.md#hotel-management) |
-| PUT `/hotels/{hotel_id}` | Полное обновление, валидация, запрет обновлять архивный отель и сохранность данных при отказе. [Тесты](testing-hotels.md#hotel-management) |
-| DELETE `/hotels/{hotel_id}` | Архив с номером, повтор и запрет при действующей брони. [Тесты](testing-hotels.md#hotel-management) |
+| GET `/hotels` | Каталог, фильтры и порядок выдачи. [Сценарии](testing-hotels.md#hotels-checklist) |
+| GET `/hotels/{hotel_id}` | Детали и доступ к архиву. [Сценарии](testing-hotels.md#hotels-checklist) |
+| POST `/hotels` | Создание и валидация. [Сценарии](testing-hotels.md#hotel-management) |
+| PUT `/hotels/{hotel_id}` | Полное обновление и отказы без изменения данных. [Сценарии](testing-hotels.md#hotel-management) |
+| DELETE `/hotels/{hotel_id}` | Архивирование и защита действующих броней. [Сценарии](testing-hotels.md#hotel-management) |
 
 ### Номера и доступность
 
 | Операция | Что проверяется и где |
 |---|---|
-| GET `/hotels/{hotel_id}/rooms` | Фильтры, сортировка, страницы, роли и архивность. [Тесты](testing-hotels.md#room-creation-reading) |
-| GET `/rooms/{room_id}` | Схема, UUID и чтение отключённого или архивного номера. [Тесты](testing-hotels.md#room-creation-reading) |
-| POST `/hotels/{hotel_id}/rooms` | Валидация, уникальность номера в отеле, запрет создания в архивном отеле и права доступа. [Тесты](testing-hotels.md#room-creation-reading) |
-| PUT `/rooms/{room_id}` | Обновление, дубликат, ограничения вместимости и архивность. [Тесты](testing-hotels.md#room-management) |
-| PATCH `/rooms/{room_id}/availability` | Отключение, включение, валидация и оплата прежней брони. [Тесты](testing-hotels.md#room-management) |
-| DELETE `/rooms/{room_id}` | Архивирование, повтор и защита действующей брони. [Тесты](testing-hotels.md#room-management) |
-| GET `/rooms/{room_id}/availability` | Цена, границы дат и числа гостей, причины отказа и освобождение дат. [Тесты](testing-bookings.md#room-availability) |
+| GET `/hotels/{hotel_id}/rooms` | Каталог номеров и порядок выдачи. [Сценарии](testing-hotels.md#room-creation-reading) |
+| GET `/rooms/{room_id}` | Детали и видимость номера. [Сценарии](testing-hotels.md#room-creation-reading) |
+| POST `/hotels/{hotel_id}/rooms` | Создание, валидация и уникальность. [Сценарии](testing-hotels.md#room-creation-reading) |
+| PUT `/rooms/{room_id}` | Обновление и ограничения при действующей брони. [Сценарии](testing-hotels.md#room-management) |
+| PATCH `/rooms/{room_id}/availability` | Управление доступностью и сохранность прежней брони. [Сценарии](testing-hotels.md#room-management) |
+| DELETE `/rooms/{room_id}` | Архивирование и защита действующих броней. [Сценарии](testing-hotels.md#room-management) |
+| GET `/rooms/{room_id}/availability` | Доступность и стоимость проживания. [Сценарии](testing-bookings.md#room-availability) |
 
 ### Бронирования
 
 | Операция | Что проверяется и где |
 |---|---|
-| POST `/bookings` | Создание, валидация, повтор ключа после оплаты, отмены, истечения или завершения. [Идемпотентность](testing-bookings.md#repeated-requests-checklist), [конкуренция](testing-bookings.md#booking-concurrency) |
-| GET `/bookings` | Фильтры, в том числе `expired` и `completed`, сортировка, страницы и изоляция владельцев. [Тесты](testing-bookings.md#booking-list) |
-| GET `/bookings/{booking_id}` | Схема, состояния, UUID и права владельца и admin. [Тесты](testing-bookings.md#booking-payment-reading) |
-| PATCH `/bookings/{booking_id}/cancel` | Возврат, повтор, права, запреты по состояниям и гонка с оплатой. [Сценарии](testing-bookings.md#booking-cancellation-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
+| POST `/bookings` | [Создание](testing-bookings.md#booking-payment-checklist), [валидация](testing-bookings.md#booking-restrictions-checklist), [идемпотентность](testing-bookings.md#repeated-requests-checklist) и [конкуренция](testing-bookings.md#booking-concurrency) |
+| GET `/bookings` | Выборка броней и изоляция владельцев. [Сценарии](testing-bookings.md#booking-list) |
+| GET `/bookings/{booking_id}` | Детали в разных состояниях и права доступа. [Сценарии](testing-bookings.md#booking-payment-reading) |
+| PATCH `/bookings/{booking_id}/cancel` | Отмена, возврат и повтор операции. [Сценарии](testing-bookings.md#booking-cancellation-checklist), [гонка с оплатой](testing-bookings.md#payment-cancellation-concurrency) |
 
 ### Платежи
 
 | Операция | Что проверяется и где |
 |---|---|
-| POST `/bookings/{booking_id}/payments` | Создание, повторы, запреты по состояниям и конкурентный запрос. [Сценарии](testing-bookings.md#payment-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
-| GET `/payments/{payment_id}` | Схема, UUID, состояния и доступ. [Тесты](testing-bookings.md#booking-payment-reading) |
-| POST `/payments/{payment_id}/simulate-success` | Подтверждение брони, повторы, сроки, права и конкуренция. [Сценарии](testing-bookings.md#payment-success-concurrency), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
-| POST `/payments/{payment_id}/simulate-failure` | Отказ с причиной, повтор, валидация и запреты по состояниям. [Сценарии](testing-bookings.md#payment-failure-checklist), [UUID](testing-bookings.md#booking-payment-mutation-ids) |
+| POST `/bookings/{booking_id}/payments` | [Создание](testing-bookings.md#booking-payment-checklist), [повторы](testing-bookings.md#repeated-requests-checklist) и [конкуренция](testing-bookings.md#payment-concurrency) |
+| GET `/payments/{payment_id}` | Детали и права доступа. [Сценарии](testing-bookings.md#booking-payment-reading) |
+| POST `/payments/{payment_id}/simulate-success` | Подтверждение брони и защита от повторной оплаты. [Основной путь](testing-bookings.md#booking-payment-checklist), [конкуренция](testing-bookings.md#payment-success-concurrency) |
+| POST `/payments/{payment_id}/simulate-failure` | Отказ оплаты и новая попытка. [Сценарии](testing-bookings.md#payment-failure-checklist) |
 
 ### Администрирование и health
 
 | Операция | Что проверяется и где |
 |---|---|
-| GET `/admin/users` | Фильтры, сортировка, пагинация, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) |
-| GET `/admin/users/{user_id}` | Чтение, UUID, права и отсутствие секретов. [Тесты](testing-auth.md#admin-users) |
-| PATCH `/admin/users/{user_id}` | Роль, активность, сохранность броней и защита последнего admin. [Тесты](testing-auth.md#admin-users) |
+| GET `/admin/users` | Выборка пользователей и права доступа. [Сценарии](testing-auth.md#admin-users) |
+| GET `/admin/users/{user_id}` | Чтение пользователя без секретов. [Сценарии](testing-auth.md#admin-users) |
+| PATCH `/admin/users/{user_id}` | Изменение прав и защита последнего администратора. [Сценарии](testing-auth.md#admin-users) |
 | GET `/health/live` | HTTP 200 и `status=alive` без токена. [Тесты](../tests/test_health.py) |
 | GET `/health/ready` | HTTP 200 и `status=ready` без токена. [Тесты](../tests/test_health.py) |
 
@@ -90,7 +88,7 @@
 
 ## Smoke-набор
 
-Маркер `smoke` выбирает 19 проверок основного пути и критичных отказов.
+Маркер `smoke` выбирает 14 проверок основного пути бронирования. Ключевые отказы — доступ к списку броней без токена и попытка забронировать занятые даты.
 
 В Allure у smoke-сценариев есть читаемые заголовки, а у многошаговых проверок видны основные действия и проверка результата. [Запуск smoke](../README.md#быстрый-старт)
 
@@ -99,12 +97,11 @@
 | [test_health_returns_success](../tests/test_health.py) — live/ready | 2 | API отвечает и сообщает готовность инфраструктуры |
 | [test_registered_user_can_login_and_get_profile](../tests/test_auth_flow.py) | 1 | Регистрация, вход, выдача рабочего токена и чтение собственного профиля |
 | [test_hotels_default_pagination](../tests/test_hotels.py) | 1 | Публичный каталог отелей возвращает корректную страницу |
-| [test_get_hotel_for_each_role](../tests/test_hotels.py) — гость, пользователь, администратор | 3 | Детали отеля доступны с токенами обеих ролей и без токена |
+| [test_get_hotel_for_each_role](../tests/test_hotels.py) — гость | 1 | Детали отеля доступны без токена |
 | [test_booking_flow.py](../tests/test_booking_flow.py) — все три теста | 3 | Список/детали номеров, доступность, создание/чтение/список брони, расчёт суммы, оплата и confirmed/succeeded |
 | [test_cancellation_releases_room_for_another_user](../tests/test_booking_cancellation.py) — без платежа/pending/оплачена | 3 | Отмена освобождает даты для другого пользователя; платёж отменяется или возвращается по исходному состоянию |
 | [test_overlapping_booking_is_rejected](../tests/test_booking_overlap.py) — только same_dates, pending_payment/confirmed | 2 | Двойное бронирование одинаковых дат запрещено до и после оплаты |
-| [test_protected_operations_reject_invalid_credentials](../tests/test_authorization.py) — только missing, три операции | 3 | Профиль, список броней и создание отеля недоступны без токена: 401 |
-| [test_user_cannot_create_hotel](../tests/test_admin_operations_access.py) | 1 | Обычный пользователь получает 403 на admin-операцию, отель не создаётся |
+| [test_protected_operations_reject_invalid_credentials](../tests/test_authorization.py) — bookings-missing | 1 | Список броней недоступен без токена — HTTP 401 |
 
 ## Запуск отдельного приложения
 
@@ -123,9 +120,22 @@ Invoke-RestMethod http://localhost:8000/api/v1/health/ready
 
 Учётные записи, DBeaver, миграции и сброс данных описаны в [README приложения](https://github.com/riqkyvf/hotel-booking-api#readme).
 
+## Локальный отчёт Allure
+
+Нужны Node.js 24 и Java 17 или 21. Проверьте, что в PowerShell работают `npm.cmd --version` и `java -version`. В каталоге автотестов выполните smoke и сгенерируйте HTML:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -m smoke -q --alluredir=artifacts/allure-results --clean-alluredir
+npm.cmd exec --yes --package=allure-commandline@2.46.1 -- allure generate artifacts/allure-results --output artifacts/allure-report --single-file --clean
+```
+
+Откройте `artifacts/allure-report/index.html` в браузере. Папка `artifacts/` исключена из Git.
+
 ## Контракт
 
-- [Требования](requirements.md)
-- [Спецификация REST API](api-specification.md)
+Полные требования и спецификация хранятся в репозитории API. Ссылки ведут на коммит `0d8396f`, используемый в [CI](../.github/workflows/api-tests.yml). При обновлении версии API в CI обновляйте и ссылки на контракт.
+
+- [Требования](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/requirements.md)
+- [Спецификация REST API](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/api-specification.md)
 - [Расчёт стоимости и переходы состояний](business-rules.md)
-- [Ограничения PostgreSQL](database-schema.md)
+- [Работа тестов с PostgreSQL](database-schema.md)

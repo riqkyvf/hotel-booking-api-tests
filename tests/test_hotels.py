@@ -301,8 +301,7 @@ def test_hotels_invalid_sort(base_url, sort):
     assert_api_error(response, status=422, code="INVALID_SORT")
 
 
-@pytest.mark.parametrize("role", HOTEL_READER_ROLES)
-@pytest.mark.smoke
+@pytest.mark.parametrize("role", [pytest.param("guest", marks=pytest.mark.smoke), "user", "admin"])
 @allure.title("Детали отеля доступны для роли {role}")
 def test_get_hotel_for_each_role(
     base_url, hotel, user_access_token, admin_access_token, role
