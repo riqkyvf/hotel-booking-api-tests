@@ -1,6 +1,6 @@
 # Бронирование и платежи
 
-Контракт: [операции бронирований и платежей](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/api-specification.md#бронирования), [бизнес-правила](business-rules.md). Сценарии с меткой `db` используют PostgreSQL для подготовки дат и проверки сохранённых состояний. Статусы меняет приложение. [Настройки подключения](../README.md#быстрый-старт)
+Контракт: [операции бронирований и платежей](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/api-specification.md#бронирования), [бизнес-правила](business-rules.md). Сценарии с меткой `db` используют PostgreSQL для подготовки дат и проверки сохранённых состояний. Статусы меняет приложение. [Настройки подключения](../README.md#быстрый-старт)
 
 <a id="booking-payment-checklist"></a>
 

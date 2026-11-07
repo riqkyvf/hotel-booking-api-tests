@@ -1,6 +1,6 @@
 # Каталог отелей и номеров
 
-Контракт: [отели](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/api-specification.md#отели), [номера](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/api-specification.md#номера) и [FR-03](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/requirements.md#fr-03-каталог). Тесты создают отели и номера для своих сценариев.
+Контракт: [отели](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/api-specification.md#отели), [номера](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/api-specification.md#номера) и [FR-03](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/requirements.md#fr-03-каталог). Тесты создают отели и номера для своих сценариев.
 
 <a id="hotels-checklist"></a>
 

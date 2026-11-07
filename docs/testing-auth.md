@@ -1,6 +1,6 @@
 # Пользователи и авторизация
 
-Контракт описан в [правилах регистрации и входа](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/requirements.md#fr-01-пользователи-и-авторизация) и [правилах деактивации](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/requirements.md#fr-02-деактивация).
+Контракт описан в [правилах регистрации и входа](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/requirements.md#fr-01-пользователи-и-авторизация) и [правилах деактивации](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/requirements.md#fr-02-деактивация).
 
 <a id="registration-checklist"></a>
 

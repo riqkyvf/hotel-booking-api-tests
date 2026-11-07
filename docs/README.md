@@ -17,7 +17,7 @@
 
 ## Карта покрытия API
 
-Карта сопоставляет [29 операций спецификации](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/api-specification.md) с проверками в `tests/`. Общий префикс путей — `/api/v1`.
+Карта сопоставляет [29 операций спецификации](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/api-specification.md) с проверками в `tests/`. Общий префикс путей — `/api/v1`.
 
 ### Пользователи и авторизация
 
@@ -133,9 +133,9 @@ npm.cmd exec --yes --package=allure-commandline@2.46.1 -- allure generate artifa
 
 ## Контракт
 
-Полные требования и спецификация хранятся в репозитории API. Ссылки ведут на коммит `0d8396f`, используемый в [CI](../.github/workflows/api-tests.yml). При обновлении версии API в CI обновляйте и ссылки на контракт.
+Полные требования и спецификация хранятся в ветке `main` репозитория API и описывают актуальный контракт. Для воспроизводимости версия приложения в [CI](../.github/workflows/api-tests.yml) закреплена отдельным коммитом и может отставать от документации.
 
-- [Требования](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/requirements.md)
-- [Спецификация REST API](https://github.com/riqkyvf/hotel-booking-api/blob/0d8396f38c8a7b727648585e33b3d34fe54652ab/docs/api-specification.md)
+- [Требования](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/requirements.md)
+- [Спецификация REST API](https://github.com/riqkyvf/hotel-booking-api/blob/main/docs/api-specification.md)
 - [Расчёт стоимости и переходы состояний](business-rules.md)
 - [Работа тестов с PostgreSQL](database-schema.md)
