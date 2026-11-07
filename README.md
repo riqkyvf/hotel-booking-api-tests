@@ -8,8 +8,17 @@
 
 ## Быстрый старт
 
+Нужны Git, Python 3.14.2 и запущенный Docker Desktop в режиме Linux containers. Команды ниже предназначены для PowerShell.
+
 1. Поднимите локальный API с PostgreSQL через Docker Compose и дождитесь `GET /api/v1/health/ready`. [Запуск стенда](docs/README.md#запуск-отдельного-приложения)
-2. Из корня репозитория автотестов выполните команды ниже с Python 3.14.2. Они установят зависимости, создадут локальный `.env` из шаблона [`.env.example`](.env.example) и запустят 19 smoke-проверок. Готовый `.env` хранится только на вашей машине. Если файл уже есть, команда сохранит ваши настройки.
+2. В другом окне PowerShell клонируйте автотесты и перейдите в их каталог. Если репозиторий уже есть, сразу перейдите в него.
+
+```powershell
+git clone https://github.com/riqkyvf/hotel-booking-api-tests.git
+Set-Location hotel-booking-api-tests
+```
+
+3. С Python 3.14.2 выполните команды ниже. Они установят зависимости, создадут локальный `.env` из шаблона [`.env.example`](.env.example) и запустят 19 smoke-проверок. Готовый `.env` хранится только на вашей машине. Если файл уже есть, команда сохранит ваши настройки.
 
 ```powershell
 python -m venv .venv
@@ -18,7 +27,7 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 .\.venv\Scripts\python.exe -m pytest -m smoke -q
 ```
 
-Для стенда с другими настройками измените значения в `.env`.
+Значения шаблона подходят для стандартного Compose-стенда приложения. Если вы меняли адреса или учётные данные стенда, укажите их в `.env`.
 
 | Переменная | Для чего нужна |
 | --- | --- |
@@ -43,7 +52,7 @@ CI поднимает временный стенд с версией прило
 
 На вкладке **Summary** видны результаты, время каждой фазы, версии API и тестов и ссылка на артефакт. Скачайте архив запуска и откройте `allure-report/index.html`. В режиме `full` Allure объединяет обе фазы. Для диагностики в архиве также есть JUnit и логи Compose.
 
-Для локального Allure-отчёта установите зависимости из `requirements.txt`. С запущенным стендом выполните smoke и сгенерируйте HTML. Для второй команды нужны Node.js и Java.
+Для локального Allure-отчёта используйте Node.js 24 и Java 17 или 21. Проверьте, что в PowerShell работают `npm.cmd --version` и `java -version`. В каталоге автотестов выполните smoke и сгенерируйте HTML.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -m smoke -q --alluredir=artifacts/allure-results --clean-alluredir

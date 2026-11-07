@@ -117,7 +117,7 @@ docker compose up --build --wait
 Invoke-RestMethod http://localhost:8000/api/v1/health/ready
 ```
 
-Когда проверка вернёт `status: ready`, вернитесь в каталог автотестов и выполните [быстрый старт](../README.md#быстрый-старт). Команда из README создаст локальный `.env` из шаблона этого репозитория.
+Когда проверка вернёт `status: ready`, переходите к клонированию и запуску автотестов в [быстром старте](../README.md#быстрый-старт). Команда из README создаст локальный `.env` из шаблона репозитория автотестов.
 
 Для отладки доступны [Swagger](http://localhost:8000/docs) и [OpenAPI](http://localhost:8000/openapi.json). Если API не готов, выполните в каталоге приложения `docker compose ps -a` и `docker compose logs --tail 100 init api worker db`.
 
