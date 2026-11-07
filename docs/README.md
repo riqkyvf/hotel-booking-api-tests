@@ -95,13 +95,13 @@
 | Существующие тесты | Случаев | Зачем включены |
 |---|---:|---|
 | [test_health_returns_success](../tests/test_health.py) — live/ready | 2 | API отвечает и сообщает готовность инфраструктуры |
-| [test_registered_user_can_login_and_get_profile](../tests/test_auth_flow.py) | 1 | Регистрация, вход, выдача рабочего токена и чтение собственного профиля |
-| [test_hotels_default_pagination](../tests/test_hotels.py) | 1 | Публичный каталог отелей возвращает корректную страницу |
-| [test_get_hotel_for_each_role](../tests/test_hotels.py) — гость | 1 | Детали отеля доступны без токена |
-| [test_booking_flow.py](../tests/test_booking_flow.py) — все три теста | 3 | Список/детали номеров, доступность, создание/чтение/список брони, расчёт суммы, оплата и confirmed/succeeded |
-| [test_cancellation_releases_room_for_another_user](../tests/test_booking_cancellation.py) — без платежа/pending/оплачена | 3 | Отмена освобождает даты для другого пользователя; платёж отменяется или возвращается по исходному состоянию |
-| [test_overlapping_booking_is_rejected](../tests/test_booking_overlap.py) — только same_dates, pending_payment/confirmed | 2 | Двойное бронирование одинаковых дат запрещено до и после оплаты |
-| [test_protected_operations_reject_invalid_credentials](../tests/test_authorization.py) — bookings-missing | 1 | Список броней недоступен без токена — HTTP 401 |
+| [test_registered_user_can_login_and_get_profile](../tests/auth/test_auth_flow.py) | 1 | Регистрация, вход, выдача рабочего токена и чтение собственного профиля |
+| [test_hotels_default_pagination](../tests/hotels/test_hotels.py) | 1 | Публичный каталог отелей возвращает корректную страницу |
+| [test_get_hotel_for_each_role](../tests/hotels/test_hotels.py) — гость | 1 | Детали отеля доступны без токена |
+| [test_booking_flow.py](../tests/bookings/test_booking_flow.py) — все три теста | 3 | Список/детали номеров, доступность, создание/чтение/список брони, расчёт суммы, оплата и confirmed/succeeded |
+| [test_cancellation_releases_room_for_another_user](../tests/bookings/test_booking_cancellation.py) — без платежа/pending/оплачена | 3 | Отмена освобождает даты для другого пользователя; платёж отменяется или возвращается по исходному состоянию |
+| [test_overlapping_booking_is_rejected](../tests/bookings/test_booking_overlap.py) — только same_dates, pending_payment/confirmed | 2 | Двойное бронирование одинаковых дат запрещено до и после оплаты |
+| [test_protected_operations_reject_invalid_credentials](../tests/auth/test_authorization.py) — bookings-missing | 1 | Список броней недоступен без токена — HTTP 401 |
 
 ## Запуск отдельного приложения
 
