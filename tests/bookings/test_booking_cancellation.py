@@ -5,9 +5,10 @@ import allure
 import pytest
 
 from api.bookings import cancel_booking, create_booking, get_booking
-from api.payments import create_payment, get_payment, simulate_payment_success
+from api.payments import create_payment, get_payment, simulate_payment_failure, simulate_payment_success
 from api.rooms import get_room_availability
 from data.booking import BLOCKING_BOOKING_STATUSES, BOOKING_NIGHTS, CANCELLATION_PAYMENT_CASES
+from data.payments import PAYMENT_DECLINE_REASON
 from tests.assertions import assert_api_error
 
 
@@ -174,6 +175,42 @@ def test_repeated_cancellation_preserves_booking_and_payment(
     assert availability_body["room_id"] == booking["room_id"]
     assert availability_body["available"] is True
     assert availability_body["reason"] is None
+
+
+def test_cancellation_preserves_failed_payment_and_cancels_pending_retry(
+    base_url, pending_payment, user_access_token,
+):
+    booking_id = pending_payment["booking"]["id"]
+    first_payment_id = pending_payment["payment"]["id"]
+    response = simulate_payment_failure(
+        base_url, user_access_token, first_payment_id, {"reason": PAYMENT_DECLINE_REASON},
+    )
+    assert response.status_code == 200, response.text
+    failed = response.json()
+    assert failed["id"] == first_payment_id
+    assert failed["status"] == "failed"
+    assert failed["failure_reason"] == PAYMENT_DECLINE_REASON
+
+    retry = create_payment(base_url, user_access_token, booking_id)
+    assert retry.status_code == 201, retry.text
+    pending = retry.json()
+    assert pending["id"] != first_payment_id
+    assert pending["booking_id"] == booking_id
+    assert pending["status"] == "pending"
+
+    cancelled = cancel_booking(base_url, user_access_token, booking_id)
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["status"] == "cancelled"
+    saved_booking = get_booking(base_url, user_access_token, booking_id)
+    assert saved_booking.status_code == 200, saved_booking.text
+    assert saved_booking.json() == cancelled.json()
+
+    saved_failed = get_payment(base_url, user_access_token, first_payment_id)
+    assert saved_failed.status_code == 200, saved_failed.text
+    assert saved_failed.json() == failed
+    saved_retry = get_payment(base_url, user_access_token, pending["id"])
+    assert saved_retry.status_code == 200, saved_retry.text
+    assert saved_retry.json()["status"] == "cancelled"
 
 
 @pytest.mark.parametrize("booking_status", BLOCKING_BOOKING_STATUSES)

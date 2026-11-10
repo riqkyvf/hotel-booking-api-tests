@@ -65,6 +65,20 @@ def test_same_key_with_different_body_is_rejected(base_url, idempotent_booking, 
     assert [item["id"] for item in page["items"]] == [booking["id"]]
 
 
+def test_invalid_body_is_rejected_before_replay(base_url, idempotent_booking, user_access_token):
+    original = idempotent_booking
+    invalid = {**original["payload"], "guests": 0}
+    response = create_booking(base_url, user_access_token, invalid, original["key"])
+    error = assert_api_error(response, status=422, code="VALIDATION_ERROR")
+    assert any(detail["field"] == "body.guests" for detail in error["error"]["details"])
+
+    replay = create_booking(base_url, user_access_token, original["payload"], original["key"])
+    assert replay.status_code == 201, replay.text
+    assert replay.json() == original["booking"]
+    assert replay.headers.get("Idempotency-Replayed", "").lower() == "true"
+    assert replay.headers.get("Location") == original["location"]
+
+
 def test_replay_after_cancellation_does_not_create_new_booking(
     base_url, stay_dates, idempotent_booking, user_access_token,
 ):
