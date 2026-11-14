@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -64,7 +64,9 @@ def test_user_can_create_and_read_booking(
     payload = {"room_id": available_room["room"]["id"], **stay_dates}
 
     with allure.step("Создать бронь и проверить сумму и срок удержания"):
+        request_started = datetime.now(timezone.utc)
         response = create_booking(base_url, user_access_token, payload, uuid4().hex)
+        response_received = datetime.now(timezone.utc)
 
         assert response.status_code == 201, response.text
         booking = response.json()
@@ -80,7 +82,16 @@ def test_user_can_create_and_read_booking(
             Decimal(BOOKING_ROOM_DATA["price_per_night"]) * BOOKING_NIGHTS
         )
         assert booking["currency"] == "RUB"
-        assert datetime.fromisoformat(booking["expires_at"]) > datetime.now(timezone.utc)
+        expires_at = datetime.fromisoformat(booking["expires_at"])
+        # This stand's API/DB and test runner must have clocks within five seconds.
+        # This bounds the ordinary request; it does not isolate decision time under locks.
+        clock_tolerance = timedelta(seconds=5)
+        earliest_expiry = request_started + timedelta(minutes=30) - clock_tolerance
+        latest_expiry = response_received + timedelta(minutes=30) + clock_tolerance
+        assert earliest_expiry <= expires_at <= latest_expiry, (
+            f"Expected expires_at in [{earliest_expiry.isoformat()}, "
+            f"{latest_expiry.isoformat()}], got {expires_at.isoformat()}"
+        )
 
     with allure.step("Найти сохранённую бронь по ID и в списке"):
         saved = get_booking(base_url, user_access_token, booking["id"])

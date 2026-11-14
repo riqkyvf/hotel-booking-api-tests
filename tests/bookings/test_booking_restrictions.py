@@ -6,7 +6,7 @@ import pytest
 from jsonschema import validate
 
 from api.bookings import create_booking, get_booking, list_bookings
-from api.rooms import archive_room, get_room, get_room_availability, update_room_availability
+from api.rooms import archive_room, get_room, get_room_availability, update_room, update_room_availability
 from data.booking import INVALID_CHECK_OUT_OFFSETS, VALID_STAY_BOUNDARIES
 from schemas.error_response import ERROR_SCHEMA
 from tests.assertions import assert_api_error
@@ -133,16 +133,27 @@ def test_booking_archived_room_is_rejected(
     assert page["items"] == []
 
 
-@pytest.mark.parametrize("check_in_offset,nights", VALID_STAY_BOUNDARIES)
+@pytest.mark.parametrize("check_in_offset,nights,guests", VALID_STAY_BOUNDARIES)
 def test_booking_with_valid_stay_boundaries_is_allowed(
-    base_url, available_room, stay_dates, registered_user, user_access_token, check_in_offset, nights,
+    base_url, available_room, registered_user, user_access_token, admin_access_token,
+    check_in_offset, nights, guests,
 ):
     room = available_room["room"]
+    if guests > room["capacity"]:
+        room_input = {field: room[field] for field in ("room_number", "type", "capacity", "price_per_night")}
+        updated = update_room(base_url, admin_access_token, room["id"], {**room_input, "capacity": guests})
+        assert updated.status_code == 200, updated.text
+        updated_room = updated.json()
+        assert updated_room["id"] == room["id"]
+        assert updated_room["capacity"] == guests
+        for field in ("hotel_id", "room_number", "type", "price_per_night", "is_available", "is_archived"):
+            assert updated_room[field] == room[field]
+        room = updated_room
     check_in = datetime.now(timezone.utc).date() + timedelta(days=check_in_offset)
     stay = {
         "check_in": check_in.isoformat(),
         "check_out": (check_in + timedelta(days=nights)).isoformat(),
-        "guests": stay_dates["guests"],
+        "guests": guests,
     }
     expected_total = Decimal(room["price_per_night"]) * nights
     availability = get_room_availability(base_url, room["id"], stay)
