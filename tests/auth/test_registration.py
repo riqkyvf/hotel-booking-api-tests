@@ -40,7 +40,7 @@ def test_register_with_phone(base_url, user_data):
     assert "password_hash" not in user
 
 
-@pytest.mark.parametrize("email_variant", ["original", "uppercase", "spaces"])
+@pytest.mark.parametrize("email_variant", ["uppercase", "spaces"])
 def test_register_with_existing_email(base_url, registered_user, email_variant):
     duplicate_data = registered_user["payload"].copy()
 

@@ -2,7 +2,6 @@ import requests
 
 from api.headers import authorization_headers
 
-
 def create_booking(base_url, access_token, data=None, idempotency_key=None, *, raw_body=None):
     headers = authorization_headers(access_token)
     if idempotency_key is not None:

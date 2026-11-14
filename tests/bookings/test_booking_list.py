@@ -75,7 +75,7 @@ def reader_options(reader, catalog, user_token, admin_token):
     ("pending", ("a", "d")), ("confirmed", ("b",)), ("cancelled", ("c",)),
     ("expired", ()), ("completed", ()), ("first_hotel", ("a", "b")), ("second_hotel", ("c", "d")),
     ("from", ("b", "c", "d")), ("to", ("a", "b", "c")), ("same_day", ("b", "c")),
-    ("status_hotel", ("d",)), ("status_date", ("b",)),
+    ("status_hotel", ("d",)), ("status_date", ("d",)),
 ])
 def test_booking_list_filters(base_url, user_access_token, booking_catalog, case, keys):
     catalog = booking_catalog
@@ -88,7 +88,10 @@ def test_booking_list_filters(base_url, user_access_token, booking_catalog, case
         "from": {"check_in_from": boundary}, "to": {"check_in_to": boundary},
         "same_day": {"check_in_from": boundary, "check_in_to": boundary},
         "status_hotel": {"status": "pending_payment", "hotel_id": catalog["hotels"][1]["id"]},
-        "status_date": {"status": "confirmed", "check_in_from": boundary, "check_in_to": boundary},
+        "status_date": {
+            "status": "pending_payment", "check_in_from": boundary,
+            "check_in_to": (catalog["today"] + timedelta(days=7)).isoformat(),
+        },
     }[case]
     response = list_bookings(base_url, user_access_token, filters)
     assert response.status_code == 200, response.text

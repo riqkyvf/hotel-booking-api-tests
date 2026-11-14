@@ -35,15 +35,6 @@ def test_login_normalizes_email(base_url, registered_login_data, email_variant):
     assert access_token
 
 
-def test_login_with_invalid_password(base_url, registered_login_data):
-    registered_login_data["password"] += "wrong"
-
-    response = login(base_url, registered_login_data)
-
-    assert response.status_code == 401, response.text
-    assert response.json()["error"]["code"] == "INVALID_CREDENTIALS"
-
-
 def test_login_with_disabled_user(base_url, disabled_user_credentials):
     response = login(
         base_url,

@@ -87,16 +87,19 @@ def test_room_list_sorting(base_url, room_catalog, sort):
         assert body["offset"] == 0
 
 
-@pytest.mark.parametrize("limit,offset", [(1, 0), (2, 0), (2, 2), (100, 0), (2, 4), (2, 10)])
-def test_room_list_pagination(base_url, room_catalog, limit, offset):
+def test_room_list_pagination(base_url, room_catalog, subtests):
     expected = [room_catalog["rooms"][key]["id"] for key in ("b", "a", "d", "c")]
-    response = list_rooms(base_url, room_catalog["hotel"]["id"], {"sort": "room_number", "limit": limit, "offset": offset})
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["total"] == 4
-    assert body["limit"] == limit
-    assert body["offset"] == offset
-    assert [room["id"] for room in body["items"]] == expected[offset:offset + limit]
+    for limit, offset in ((1, 0), (2, 0), (2, 2), (100, 0), (2, 4), (2, 10)):
+        with subtests.test(limit=limit, offset=offset):
+            response = list_rooms(
+                base_url, room_catalog["hotel"]["id"], {"sort": "room_number", "limit": limit, "offset": offset},
+            )
+            assert response.status_code == 200, response.text
+            body = response.json()
+            assert body["total"] == len(expected)
+            assert body["limit"] == limit
+            assert body["offset"] == offset
+            assert [room["id"] for room in body["items"]] == expected[offset:offset + limit]
 
 
 @pytest.mark.parametrize("params", [

@@ -85,6 +85,15 @@ def user_access_token(base_url, registered_login_data):
 
 @pytest.fixture
 def admin_access_token(base_url):
+    return login_as_admin(base_url)
+
+
+@pytest.fixture(scope="module")
+def module_admin_access_token(base_url):
+    return login_as_admin(base_url)
+
+
+def login_as_admin(base_url):
     email = os.getenv("API_ADMIN_EMAIL")
     password = os.getenv("API_ADMIN_PASSWORD")
     if not email or not password:

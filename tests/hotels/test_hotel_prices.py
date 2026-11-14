@@ -66,12 +66,12 @@ def create_priced_hotel(base_url, access_token, city, case):
     return hotel
 
 
-@pytest.fixture
-def price_filter_catalog(base_url, admin_access_token):
+@pytest.fixture(scope="module")
+def price_filter_catalog(base_url, module_admin_access_token):
     city = f"PriceFilter_{uuid4().hex}"
     hotels = {}
     for key, case in PRICE_HOTELS.items():
-        hotels[key] = create_priced_hotel(base_url, admin_access_token, city, case)
+        hotels[key] = create_priced_hotel(base_url, module_admin_access_token, city, case)
     return {"city": city, "hotels": hotels}
 
 
