@@ -6,7 +6,7 @@ import pytest
 from api.bookings import create_booking, get_booking
 from api.payments import create_payment, get_payment, simulate_payment_success
 from api.rooms import get_room_availability
-from db import move_booking_expiry_to_past
+from db import get_booking_and_payment_statuses, get_booking_payment_history, move_booking_expiry_to_past
 from tests.assertions import assert_api_error
 
 
@@ -16,6 +16,12 @@ def test_expired_booking_cancels_payment_and_releases_room(
 ):
     booking = pending_payment["booking"]
     payment = pending_payment["payment"]
+    actor_id = booking["user_id"]
+    initial_history = {
+        "booking": [{"from_status": None, "to_status": "pending_payment", "actor_id": actor_id}],
+        "payment": [{"from_status": None, "to_status": "pending", "actor_id": actor_id}],
+    }
+    assert get_booking_payment_history(database_url, booking["id"], actor_id, payment["id"]) == initial_history
     stay = stay_dates
     occupied = get_room_availability(base_url, booking["room_id"], stay)
     assert occupied.status_code == 200, occupied.text
@@ -29,6 +35,18 @@ def test_expired_booking_cancels_payment_and_releases_room(
 
     response = simulate_payment_success(base_url, user_access_token, payment["id"])
     assert_api_error(response, status=409, code="BOOKING_EXPIRED")
+
+    # Read committed state before GET reconciliation; the worker may still act first.
+    assert get_booking_and_payment_statuses(database_url, booking["id"], actor_id, payment["id"]) == {
+        "booking": "expired", "payment": "cancelled",
+    }
+    expected_history = {
+        "booking": [*initial_history["booking"],
+                    {"from_status": "pending_payment", "to_status": "expired", "actor_id": None}],
+        "payment": [*initial_history["payment"],
+                    {"from_status": "pending", "to_status": "cancelled", "actor_id": None}],
+    }
+    assert get_booking_payment_history(database_url, booking["id"], actor_id, payment["id"]) == expected_history
 
     saved_booking = get_booking(base_url, user_access_token, booking["id"])
     assert saved_booking.status_code == 200, saved_booking.text
@@ -74,3 +92,4 @@ def test_expired_booking_cancels_payment_and_releases_room(
     original = get_booking(base_url, user_access_token, booking["id"])
     assert original.status_code == 200, original.text
     assert original.json() == expired
+    assert get_booking_payment_history(database_url, booking["id"], actor_id, payment["id"]) == expected_history

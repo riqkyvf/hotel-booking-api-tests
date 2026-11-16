@@ -14,8 +14,14 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, payment_status):
-    """Return current {booking, payment}; payment is None when no payment was requested."""
-    payload = {"room_id": available_room["room"]["id"], **stay_dates}
+    """Return {booking, payment, stay} with check-in tomorrow; payment may be None."""
+    check_in = datetime.now(timezone.utc).date() + timedelta(days=1)
+    stay = {
+        **stay_dates,
+        "check_in": check_in.isoformat(),
+        "check_out": (check_in + timedelta(days=BOOKING_NIGHTS)).isoformat(),
+    }
+    payload = {"room_id": available_room["room"]["id"], **stay}
     booking_response = create_booking(base_url, user_access_token, payload, uuid4().hex)
     assert booking_response.status_code == 201, booking_response.text
     booking = booking_response.json()
@@ -52,19 +58,19 @@ def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, p
             assert current_payment[field] == payment[field]
         payment = current_payment
 
-    return {"booking": current_booking, "payment": payment}
+    return {"booking": current_booking, "payment": payment, "stay": stay}
 
 
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
 @pytest.mark.smoke
 @allure.title("Отмена освобождает номер для другого пользователя ({param_id})")
 def test_cancellation_releases_room_for_another_user(
-    base_url, stay_dates, booking_to_cancel, user_access_token, second_user,
+    base_url, booking_to_cancel, user_access_token, second_user,
     expected_payment_status,
 ):
     booking = booking_to_cancel["booking"]
     room_id = booking["room_id"]
-    stay = stay_dates
+    stay = booking_to_cancel["stay"]
 
     with allure.step("Проверить, что исходная бронь удерживает даты"):
         occupied_response = get_room_availability(base_url, room_id, stay)
@@ -131,7 +137,7 @@ def test_cancellation_releases_room_for_another_user(
 
 @pytest.mark.parametrize("payment_status,expected_payment_status", CANCELLATION_PAYMENT_CASES)
 def test_repeated_cancellation_preserves_booking_and_payment(
-    base_url, stay_dates, booking_to_cancel, user_access_token,
+    base_url, booking_to_cancel, user_access_token,
     expected_payment_status,
 ):
     booking = booking_to_cancel["booking"]
@@ -169,7 +175,7 @@ def test_repeated_cancellation_preserves_booking_and_payment(
         assert saved_payment.status_code == 200, saved_payment.text
         assert saved_payment.json() == cancelled_payment
 
-    availability = get_room_availability(base_url, booking["room_id"], stay_dates)
+    availability = get_room_availability(base_url, booking["room_id"], booking_to_cancel["stay"])
     assert availability.status_code == 200, availability.text
     availability_body = availability.json()
     assert availability_body["room_id"] == booking["room_id"]
@@ -180,7 +186,8 @@ def test_repeated_cancellation_preserves_booking_and_payment(
 def test_cancellation_preserves_failed_payment_and_cancels_pending_retry(
     base_url, pending_payment, user_access_token,
 ):
-    booking_id = pending_payment["booking"]["id"]
+    booking = pending_payment["booking"]
+    booking_id = booking["id"]
     first_payment_id = pending_payment["payment"]["id"]
     response = simulate_payment_failure(
         base_url, user_access_token, first_payment_id, {"reason": PAYMENT_DECLINE_REASON},
@@ -197,20 +204,31 @@ def test_cancellation_preserves_failed_payment_and_cancels_pending_retry(
     assert pending["id"] != first_payment_id
     assert pending["booking_id"] == booking_id
     assert pending["status"] == "pending"
+    assert pending["amount"] == booking["total_price"]
+    assert pending["currency"] == booking["currency"]
+    assert pending["failure_reason"] is None
 
     cancelled = cancel_booking(base_url, user_access_token, booking_id)
     assert cancelled.status_code == 200, cancelled.text
-    assert cancelled.json()["status"] == "cancelled"
+    cancelled_booking = cancelled.json()
+    assert cancelled_booking["status"] == "cancelled"
+    for field, value in booking.items():
+        if field not in ("status", "updated_at"):
+            assert cancelled_booking[field] == value, field
     saved_booking = get_booking(base_url, user_access_token, booking_id)
     assert saved_booking.status_code == 200, saved_booking.text
-    assert saved_booking.json() == cancelled.json()
+    assert saved_booking.json() == cancelled_booking
 
     saved_failed = get_payment(base_url, user_access_token, first_payment_id)
     assert saved_failed.status_code == 200, saved_failed.text
     assert saved_failed.json() == failed
     saved_retry = get_payment(base_url, user_access_token, pending["id"])
     assert saved_retry.status_code == 200, saved_retry.text
-    assert saved_retry.json()["status"] == "cancelled"
+    cancelled_payment = saved_retry.json()
+    assert cancelled_payment["status"] == "cancelled"
+    for field, value in pending.items():
+        if field not in ("status", "updated_at"):
+            assert cancelled_payment[field] == value, field
 
 
 @pytest.mark.parametrize("booking_status", BLOCKING_BOOKING_STATUSES)

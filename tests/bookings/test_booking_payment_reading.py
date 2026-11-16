@@ -15,10 +15,11 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def readable_resources(base_url, pending_payment, user_access_token, request):
-    """Prepare and reread actual API snapshots; only expires_at uses existing SQL preparation."""
+    """Verify prepared resources against creation snapshots before using them for rereads."""
     booking = pending_payment["booking"]
     payment = pending_payment["payment"]
     state = request.param
+    expires_at = datetime.fromisoformat(booking["expires_at"])
     if state in ("confirmed", "refunded"):
         paid = simulate_payment_success(base_url, user_access_token, payment["id"])
         assert paid.status_code == 200, paid.text
@@ -32,7 +33,9 @@ def readable_resources(base_url, pending_payment, user_access_token, request):
         assert failed.status_code == 200, failed.text
         assert failed.json()["status"] == "failed"
     elif state == "expired":
-        move_booking_expiry_to_past(request.getfixturevalue("database_url"), booking["id"], booking["user_id"])
+        expires_at = move_booking_expiry_to_past(
+            request.getfixturevalue("database_url"), booking["id"], booking["user_id"],
+        )
     saved_booking = get_booking(base_url, user_access_token, booking["id"])
     assert saved_booking.status_code == 200, saved_booking.text
     saved_payment = get_payment(base_url, user_access_token, payment["id"])
@@ -42,8 +45,20 @@ def readable_resources(base_url, pending_payment, user_access_token, request):
         "cancelled": ("cancelled", "cancelled"), "refunded": ("cancelled", "refunded"),
         "failed": ("pending_payment", "failed"), "expired": ("expired", "cancelled"),
     }[state]
-    assert saved_booking.json()["status"] == expected_booking
-    assert saved_payment.json()["status"] == expected_payment
+    booking_body = saved_booking.json()
+    payment_body = saved_payment.json()
+    # State transitions may change status and updated_at, but must preserve the other data.
+    assert {key: value for key, value in booking_body.items() if key not in ("updated_at", "expires_at")} == {
+        key: value for key, value in {**booking, "status": expected_booking}.items()
+        if key not in ("updated_at", "expires_at")
+    }
+    assert datetime.fromisoformat(booking_body["expires_at"]) == expires_at
+    assert {key: value for key, value in payment_body.items() if key != "updated_at"} == {
+        key: value for key, value in {
+            **payment, "status": expected_payment,
+            "failure_reason": "Read contract test" if state == "failed" else None,
+        }.items() if key != "updated_at"
+    }
     return {"booking": saved_booking.json(), "payment": saved_payment.json()}
 
 

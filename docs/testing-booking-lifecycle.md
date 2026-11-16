@@ -41,7 +41,7 @@
 
 ## Отмена
 
-Источники: FR-08 (отмена), FR-09 (конкуренция), FR-04 (чужие ресурсы) и REST-спецификация версии из начала документа. Если не указано иное, заезд в будущем по UTC, удержание не истекло, запрос выполняет владелец.
+Источники: FR-08 (отмена), FR-09 (конкуренция), FR-04 (чужие ресурсы) и REST-спецификация версии из начала документа. Если не указано иное, заезд в будущем по UTC, удержание не истекло, запрос выполняет владелец. В CAN-001–003 и CAN-005 заезд завтра — проверяется последний допустимый день отмены.
 
 
 | ID | Проверяемое правило | Варианты | Важность | Покрытие | Реализация автотеста |
@@ -49,7 +49,7 @@
 | CAN-001 | <a id="can-001"></a>Отмена → `200`, бронь `cancelled`, даты освобождены для другого пользователя | `pending_payment`, без платежа (`without_payment`) | Высокая | Покрыто | [test_cancellation_releases_room_for_another_user](../tests/bookings/test_booking_cancellation.py) |
 | CAN-002 | <a id="can-002"></a>Отмена → `200`, бронь и ожидающий платёж `cancelled`, даты освобождены | Платёж `pending` (`pending_payment`) | Высокая | Покрыто | [test_cancellation_releases_room_for_another_user](../tests/bookings/test_booking_cancellation.py) |
 | CAN-003 | <a id="can-003"></a>Отмена → `200`, бронь `cancelled`, полный возврат `refunded`, даты освобождены | Бронь `confirmed`, платёж `succeeded` (`paid_booking`) | Высокая | Покрыто | [test_cancellation_releases_room_for_another_user](../tests/bookings/test_booking_cancellation.py) |
-| CAN-004 | <a id="can-004"></a>Отмена сохраняет отказ первого платежа и отменяет ожидающую повторную попытку | Первый платёж `failed`, второй `pending` | Высокая | Покрыто | [test_cancellation_preserves_failed_payment_and_cancels_pending_retry](../tests/bookings/test_booking_cancellation.py) |
+| CAN-004 | <a id="can-004"></a>Отмена сохраняет отказ первого платежа и отменяет ожидающую повторную попытку; бизнес-поля брони и второго платежа сохранены | Первый платёж `failed`, второй `pending` | Высокая | Покрыто | [test_cancellation_preserves_failed_payment_and_cancels_pending_retry](../tests/bookings/test_booking_cancellation.py) |
 | CAN-005 | <a id="can-005"></a>Повтор отмены → `200`, ресурсы неизменны, повторного возврата нет | До заезда: `without_payment`, `pending_payment`, `paid_booking` | Высокая | Частично: HTTP-снимки проверены, события возврата в БД — нет | [test_repeated_cancellation_preserves_booking_and_payment](../tests/bookings/test_booking_cancellation.py) |
 | CAN-006 | <a id="can-006"></a>Admin может отменить чужую бронь → `200`, платёж отменяется/возвращается, даты свободны | `booking_with_payment=pending_payment` / `confirmed` | Высокая | Покрыто | [test_admin_can_cancel_another_users_booking](../tests/bookings/test_admin_booking_access.py) |
 | CAN-007 | <a id="can-007"></a>Чужой пользователь не может отменить бронь → `404 NOT_FOUND`, ресурсы и занятость дат неизменны | `booking_with_payment=pending_payment` / `confirmed` | Высокая | Покрыто | [test_user_cannot_cancel_another_users_booking](../tests/bookings/test_booking_access.py) |
@@ -77,7 +77,7 @@ CAN-001–003 входят в `smoke`. Варианты платежей зад�
 
 | ID | Проверяемое правило | Варианты | Важность | Покрытие | Реализация автотеста |
 | --- | --- | --- | --- | --- | --- |
-| EXP-001 | <a id="exp-001"></a>После срока оплата запрещена → `409 BOOKING_EXPIRED`, бронь `expired`, платёж `cancelled` | Симуляция успеха после сдвига срока; суммы и бизнес-поля сохранены | Высокая | Покрыто | [test_expired_booking_cancels_payment_and_releases_room](../tests/bookings/test_booking_expiration.py) |
+| EXP-001 | <a id="exp-001"></a>После срока оплата запрещена → `409 BOOKING_EXPIRED`, бронь `expired`, платёж `cancelled` | Симуляция успеха после сдвига срока; SQL до GET, единственные системные переходы и сохранность истории | Высокая | Частично: состояния и история проверены; worker может скрыть откат запроса оплаты | [test_expired_booking_cancels_payment_and_releases_room](../tests/bookings/test_booking_expiration.py) |
 | EXP-002 | <a id="exp-002"></a>Истечение освобождает номер для новой брони | Другой пользователь, те же номер и даты → `201`; исходная бронь остаётся `expired` | Высокая | Покрыто | [test_expired_booking_cancels_payment_and_releases_room](../tests/bookings/test_booking_expiration.py) |
 | EXP-003 | <a id="exp-003"></a>Запрос доступности после срока возвращает свободные даты; ресурсы `expired` / `cancelled` | Первым после сдвига срока запрашивается доступность; бизнес-поля сохранены | Высокая | Покрыто | [test_availability_releases_expired_hold](../tests/rooms/test_room_availability.py) |
 | EXP-004 | <a id="exp-004"></a>Операции оплаты для `expired` → `409 BOOKING_EXPIRED`, ресурсы неизменны | `non_payable_booking=expired`; `operation=create_payment` / `success` / `failure` | Высокая | Покрыто | [test_non_payable_booking_rejects_payment_operations](../tests/bookings/test_booking_payment_states.py) |
@@ -90,7 +90,7 @@ CAN-001–003 входят в `smoke`. Варианты платежей зад�
 | EXP-011 | <a id="exp-011"></a>Задержка worker не мешает освобождению номера и не разрешает оплату | Worker остановлен; актуализация запросом | Высокая | Не покрыто | — |
 | EXP-012 | <a id="exp-012"></a>Worker самостоятельно актуализирует просроченные удержания и завершившиеся проживания | Без HTTP-запросов, способных актуализировать данные: БД показывает expired/cancelled либо completed/succeeded; ориентир цикла около 5 секунд, не строгий SLA завершения за 5 секунд | Высокая | Не покрыто | — |
 
-Отмена истёкшей брони — CAN-010. В EXP-001, EXP-003 и EXP-006 worker может выполнить переход раньше запроса: покрыт конечный результат, механизм перехода не изолирован. EXP-008–010 требуют управления моментом решения и блокировками; сдвиг срока на минуту их не проверяет. Автономная работа worker — EXP-012. Каждый способ актуализации отдельно не изолирован: EXP-001/003/006 и CMP-001 подтверждают итоговое состояние, RMI-005 описывает непокрытое архивирование после срока.
+Отмена истёкшей брони — CAN-010. В EXP-001 состояния читаются через SQL сразу после 409, до GET; история проверяется до и после повторных обращений. GET не может скрыть откат запроса оплаты, но worker может выполнить переход раньше: сохранение изменений именно запросом оплаты отдельно не доказано. В EXP-003/006 и CMP-001 инициатор перехода также не изолирован. EXP-008–010 требуют управления точным временем и блокировками; остановленный и автономный worker — непокрытые EXP-011/012.
 
 <a id="booking-completion"></a>
 

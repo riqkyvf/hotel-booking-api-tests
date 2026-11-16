@@ -17,7 +17,8 @@ from tests.assertions import assert_api_error
 def booking_catalog(base_url, admin_access_token, registered_user, user_access_token, second_user):
     """Four owner bookings across two hotels, plus another user's booking in the first hotel."""
     hotels, rooms = [], []
-    for price in ("1000.00", "2000.00"):
+    # Different digit counts distinguish numeric ordering from lexicographic ordering.
+    for price in ("9000.00", "10000.00"):
         created = create_hotel(base_url, admin_access_token, {**HOTEL_TEMPLATE, "city": f"BookingList_{uuid4().hex}"})
         assert created.status_code == 201, created.text
         hotels.append(created.json())
@@ -27,7 +28,7 @@ def booking_catalog(base_url, admin_access_token, registered_user, user_access_t
         rooms.append(created_room.json())
     # b has a separate room/price but the same total as a, exercising UUID tie-breaking.
     created_room = create_room(base_url, admin_access_token, hotels[0]["id"],
-                               {**BOOKING_ROOM_DATA, "room_number": "102", "price_per_night": "500.00"})
+                               {**BOOKING_ROOM_DATA, "room_number": "102", "price_per_night": "4500.00"})
     assert created_room.status_code == 201, created_room.text
     rooms.append(created_room.json())
     today = datetime.now(timezone.utc).date()
@@ -198,6 +199,7 @@ def test_admin_lists_both_owners_with_hotel_filter(base_url, admin_access_token,
     assert response.status_code == 200, response.text
     expected = [booking_catalog["bookings"][key] for key in "ab"] + [booking_catalog["other"]]
     assert response.json()["total"] == 3
+    assert len(response.json()["items"]) == len(expected)
     assert {item["id"] for item in response.json()["items"]} == {item["id"] for item in expected}
 
 

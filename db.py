@@ -50,6 +50,28 @@ def get_booking_payment_states(database_url, booking_id, user_id):
     return [{"id": str(payment_id), "status": status} for payment_id, status in rows if payment_id is not None]
 
 
+def get_booking_and_payment_statuses(database_url, booking_id, user_id, payment_id):
+    """Read a committed booking/payment pair without triggering API reconciliation."""
+    with psycopg.connect(
+        database_url,
+        connect_timeout=5,
+        options="-c default_transaction_read_only=on -c lock_timeout=5000 -c statement_timeout=10000",
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT b.status, p.status FROM bookings AS b
+                JOIN payments AS p ON p.booking_id = b.id
+                WHERE b.id = %s AND b.user_id = %s AND p.id = %s
+                """,
+                (UUID(booking_id), UUID(user_id), UUID(payment_id)),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise ValueError("Expected this user's booking and payment in the configured test database")
+    return {"booking": row[0], "payment": row[1]}
+
+
 def get_booking_payment_history(database_url, booking_id, user_id, payment_id):
     """Read transition histories only after verifying this payment belongs to this user's booking."""
     with psycopg.connect(
