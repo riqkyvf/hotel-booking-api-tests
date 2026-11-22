@@ -36,7 +36,6 @@ def test_expired_booking_cancels_payment_and_releases_room(
     response = simulate_payment_success(base_url, user_access_token, payment["id"])
     assert_api_error(response, status=409, code="BOOKING_EXPIRED")
 
-    # Read committed state before GET reconciliation; the worker may still act first.
     assert get_booking_and_payment_statuses(database_url, booking["id"], actor_id, payment["id"]) == {
         "booking": "expired", "payment": "cancelled",
     }

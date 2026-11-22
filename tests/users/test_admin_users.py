@@ -12,7 +12,6 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def managed_user(base_url, registered_user, admin_access_token):
-    """Only this test-created user can be promoted; restore its ordinary role at teardown."""
     yield registered_user
     restored = update_user_as_admin(base_url, admin_access_token, registered_user["user"]["id"],
                                     {"role": "user", "is_active": True})

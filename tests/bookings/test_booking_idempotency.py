@@ -30,7 +30,6 @@ def idempotent_booking(base_url, available_room, stay_dates, user_access_token):
 
 def test_same_key_and_body_replay_original_booking(base_url, idempotent_booking, user_access_token):
     booking = idempotent_booking["booking"]
-    # Reordering JSON fields must not change the validated request.
     reordered = dict(reversed(list(idempotent_booking["payload"].items())))
     response = create_booking(base_url, user_access_token, reordered, idempotent_booking["key"])
     assert response.status_code == 201, response.text

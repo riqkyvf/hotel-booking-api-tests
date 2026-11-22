@@ -11,7 +11,6 @@ from tests.assertions import assert_api_error
 def assert_missing_authorization(response, token):
     assert_api_error(response, status=401, code="UNAUTHORIZED")
     assert response.headers.get("WWW-Authenticate") == "Bearer"
-    # Ensure the two cases really send different HTTP headers.
     if token is None:
         assert "Authorization" not in response.request.headers
     else:
@@ -36,7 +35,6 @@ def test_create_booking_requires_authorization(
     assert availability.json()["available"] is True
     assert availability.json()["reason"] is None
 
-    # Valid retry proves that rejection did not reserve the room or consume this key.
     created = create_booking(base_url, user_access_token, payload, key)
     assert created.status_code == 201, created.text
     assert created.headers.get("Idempotency-Replayed", "").lower() == "false"
@@ -60,7 +58,6 @@ def test_create_payment_requires_authorization(
     assert saved_booking.status_code == 200, saved_booking.text
     assert saved_booking.json() == booking
 
-    # No existing pending payment: a premature 409 cannot hide missing authorization.
     created_payment = create_payment(base_url, user_access_token, booking["id"])
     assert created_payment.status_code == 201, created_payment.text
     payment = created_payment.json()

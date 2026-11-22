@@ -14,7 +14,6 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def booking_to_cancel(base_url, available_room, stay_dates, user_access_token, payment_status):
-    """Return {booking, payment, stay} with check-in tomorrow; payment may be None."""
     check_in = datetime.now(timezone.utc).date() + timedelta(days=1)
     stay = {
         **stay_dates,
@@ -129,7 +128,6 @@ def test_cancellation_releases_room_for_another_user(
         assert saved_new_booking.status_code == 200, saved_new_booking.text
         assert saved_new_booking.json() == new_booking
 
-        # A new booking must not change the cancelled booking.
         original_booking_response = get_booking(base_url, user_access_token, booking["id"])
         assert original_booking_response.status_code == 200, original_booking_response.text
         assert original_booking_response.json() == cancelled_booking
@@ -161,7 +159,6 @@ def test_repeated_cancellation_preserves_booking_and_payment(
         for field in ("id", "booking_id", "amount", "currency"):
             assert cancelled_payment[field] == payment[field]
 
-    # Repeating cancellation must preserve both final snapshots.
     repeated_cancel_response = cancel_booking(base_url, user_access_token, booking["id"])
     assert repeated_cancel_response.status_code == 200, repeated_cancel_response.text
     assert repeated_cancel_response.json() == cancelled_booking
@@ -261,7 +258,6 @@ def test_cancellation_on_check_in_day_is_rejected(
         assert succeeded.status_code == 200, succeeded.text
         assert succeeded.json()["status"] == "succeeded"
 
-    # Capture both resources before the rejected cancellation.
     before_booking = get_booking(base_url, user_access_token, booking["id"])
     assert before_booking.status_code == 200, before_booking.text
     original_booking = before_booking.json()

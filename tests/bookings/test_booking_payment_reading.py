@@ -15,7 +15,6 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def readable_resources(base_url, pending_payment, user_access_token, request):
-    """Verify prepared resources against creation snapshots before using them for rereads."""
     booking = pending_payment["booking"]
     payment = pending_payment["payment"]
     state = request.param
@@ -47,7 +46,6 @@ def readable_resources(base_url, pending_payment, user_access_token, request):
     }[state]
     booking_body = saved_booking.json()
     payment_body = saved_payment.json()
-    # State transitions may change status and updated_at, but must preserve the other data.
     assert {key: value for key, value in booking_body.items() if key not in ("updated_at", "expires_at")} == {
         key: value for key, value in {**booking, "status": expected_booking}.items()
         if key not in ("updated_at", "expires_at")

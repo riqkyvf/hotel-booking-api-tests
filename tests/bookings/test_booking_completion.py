@@ -91,7 +91,6 @@ def test_confirmed_stay_completes_on_checkout_day(
         assert response.json()["total"] == 1
         assert [item["id"] for item in response.json()["items"]] == [context["original"]["id"]]
     completed = assert_completed_state(base_url, database_url, user_access_token, context)
-    # Repeated reads must preserve the terminal state and produce no duplicate history.
     assert assert_completed_state(base_url, database_url, user_access_token, context) == completed
 
 

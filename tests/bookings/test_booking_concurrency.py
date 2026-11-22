@@ -40,7 +40,6 @@ def test_only_one_concurrent_booking_can_reserve_room(
 
         def reserve(participant):
             barrier.wait()
-            # Each call uses its own requests session and payload; no automatic retries.
             return create_booking(base_url, participant["token"], payload.copy(), participant["key"])
 
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -64,7 +63,6 @@ def test_only_one_concurrent_booking_can_reserve_room(
             assert booking[field] == value
 
     with allure.step("Убедиться, что сохранилась одна бронь и номер занят"):
-        # Status codes alone cannot prove there was only one committed booking.
         for index, participant in enumerate(participants):
             listed = list_bookings(base_url, participant["token"])
             assert listed.status_code == 200, listed.text
@@ -120,7 +118,6 @@ def test_concurrent_same_key_returns_one_booking(
     for response in responses:
         assert response.headers.get("X-Request-ID")
 
-    # A later replay must retain the original snapshot, including its expiry time.
     replay = create_booking(base_url, user_access_token, payload.copy(), key)
     assert replay.status_code == 201, replay.text
     assert replay.json() == booking

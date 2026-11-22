@@ -57,7 +57,6 @@ def email_254():
 
 @pytest.fixture
 def registered_user(base_url, user_data):
-    """Return registration payload (including password) and the server user snapshot."""
     response = register(base_url, user_data)
 
     assert response.status_code == 201, response.text
@@ -67,7 +66,6 @@ def registered_user(base_url, user_data):
 
 @pytest.fixture
 def registered_login_data(registered_user):
-    """Return email/password credentials for the newly registered user."""
     return {
         "email": registered_user["payload"]["email"],
         "password": registered_user["payload"]["password"],
@@ -118,7 +116,6 @@ def login_as_admin(base_url):
 
 @pytest.fixture
 def disabled_user_credentials(base_url, registered_user, admin_access_token):
-    """Return registration credentials after disabling this test's user."""
     user_id = registered_user["user"]["id"]
 
     update_response = update_user_as_admin(
@@ -171,7 +168,6 @@ def stay_dates():
 
 @pytest.fixture
 def second_user(base_url, user_data):
-    """Register and log in another user; return {id, access_token}."""
     payload = {**user_data, "email": f"second_{uuid4().hex}@example.com"}
     registered = register(base_url, payload)
     assert registered.status_code == 201, registered.text
@@ -184,7 +180,6 @@ def second_user(base_url, user_data):
 
 @pytest.fixture
 def pending_payment(base_url, available_room, stay_dates, registered_user, user_access_token):
-    """Return {booking, payment} snapshots in pending_payment/pending states."""
     payload = {"room_id": available_room["room"]["id"], **stay_dates}
     booked = create_booking(base_url, user_access_token, payload, uuid4().hex)
     assert booked.status_code == 201, booked.text
@@ -207,7 +202,6 @@ def pending_payment(base_url, available_room, stay_dates, registered_user, user_
 
 @pytest.fixture(params=BLOCKING_BOOKING_STATUSES)
 def booking_with_payment(base_url, pending_payment, user_access_token, request):
-    """Return current {booking, payment}; run consumers for pending_payment and confirmed bookings."""
     booking = pending_payment["booking"]
     payment = pending_payment["payment"]
 

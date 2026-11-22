@@ -1,4 +1,3 @@
-"""Summarize the pytest phases from their JUnit reports in GitHub Actions."""
 import os
 from pathlib import Path
 from xml.etree import ElementTree

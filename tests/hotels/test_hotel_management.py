@@ -14,7 +14,6 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def hotel_operation(base_url, admin_access_token, available_room, request):
-    """Prepare a target and expose either POST or PUT with the same HotelInput."""
     hotel = available_room["hotel"]
 
     def send(payload=None, *, raw_body=None):
@@ -84,6 +83,20 @@ def test_hotel_rejects_invalid_fields(base_url, hotel_operation, field, value):
     assert saved.json() == hotel_operation["hotel"]
 
 
+def test_create_hotel_with_empty_name_does_not_save_hotel(base_url, admin_access_token):
+    city = f"Rejected_{uuid4().hex}"
+    payload = {**HOTEL_TEMPLATE, "name": "", "city": city}
+
+    response = create_hotel(base_url, admin_access_token, payload)
+    body = assert_api_error(response, status=422, code="VALIDATION_ERROR")
+    assert any(item["field"] == "body.name" for item in body["error"]["details"])
+
+    saved = list_hotels(base_url, {"city": city, "include_archived": True}, access_token=admin_access_token)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["total"] == 0
+    assert saved.json()["items"] == []
+
+
 @pytest.mark.parametrize("hotel_operation", ["create", "update"], indirect=True)
 @pytest.mark.parametrize("field,value", [("is_archived", True), ("id", str(uuid4())), ("unexpected", "x")])
 def test_hotel_rejects_read_only_or_unknown_fields(base_url, hotel_operation, field, value):
@@ -139,7 +152,6 @@ def test_archive_hotel_archives_rooms_and_is_repeatable(base_url, admin_access_t
     assert archived_room["is_archived"] is True
     for field in ("id", "hotel_id", "room_number", "type", "capacity", "price_per_night", "created_at"):
         assert archived_room[field] == room[field]
-    # Repeated DELETE must preserve both final snapshots.
     repeated = archive_hotel(base_url, admin_access_token, hotel["id"])
     assert repeated.status_code == 204, repeated.text
     assert repeated.content == b""

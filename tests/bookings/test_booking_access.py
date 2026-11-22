@@ -92,7 +92,6 @@ def test_user_cannot_create_payment_for_another_users_booking(
     assert saved_booking.status_code == 200, saved_booking.text
     assert saved_booking.json() == booking
 
-    # A rejected request must not leave a pending payment that blocks the owner.
     owner_response = create_payment(base_url, user_access_token, booking["id"])
     assert owner_response.status_code == 201, owner_response.text
     payment = owner_response.json()

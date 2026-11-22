@@ -15,9 +15,7 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def booking_catalog(base_url, admin_access_token, registered_user, user_access_token, second_user):
-    """Four owner bookings across two hotels, plus another user's booking in the first hotel."""
     hotels, rooms = [], []
-    # Different digit counts distinguish numeric ordering from lexicographic ordering.
     for price in ("9000.00", "10000.00"):
         created = create_hotel(base_url, admin_access_token, {**HOTEL_TEMPLATE, "city": f"BookingList_{uuid4().hex}"})
         assert created.status_code == 201, created.text
@@ -26,7 +24,6 @@ def booking_catalog(base_url, admin_access_token, registered_user, user_access_t
                                    {**BOOKING_ROOM_DATA, "price_per_night": price})
         assert created_room.status_code == 201, created_room.text
         rooms.append(created_room.json())
-    # b has a separate room/price but the same total as a, exercising UUID tie-breaking.
     created_room = create_room(base_url, admin_access_token, hotels[0]["id"],
                                {**BOOKING_ROOM_DATA, "room_number": "102", "price_per_night": "4500.00"})
     assert created_room.status_code == 201, created_room.text
@@ -67,7 +64,6 @@ def booking_catalog(base_url, admin_access_token, registered_user, user_access_t
 
 
 def reader_options(reader, catalog, user_token, admin_token):
-    # Admin results are scoped to this test's user; no assumptions about the shared seed.
     return ((user_token, {}) if reader == "owner"
             else (admin_token, {"user_id": catalog["owner_id"]}))
 
@@ -158,7 +154,6 @@ def test_booking_list_sorting(base_url, user_access_token, admin_access_token, b
     actual_sort = sort or "-created_at"
     field = actual_sort.lstrip("-")
     records = booking_catalog["bookings"]
-    # Explicit equality groups independently exercise price and date ordering.
     tied_prices = {group: sorted(records[key]["id"] for key in group) for group in ("ab", "cd")}
     tied_dates = sorted(records[key]["id"] for key in "bc")
     if field == "total_price":
@@ -204,15 +199,27 @@ def test_admin_lists_both_owners_with_hotel_filter(base_url, admin_access_token,
 
 
 @pytest.mark.parametrize("target", ["self", "other", "unknown"])
-def test_owner_cannot_filter_by_any_user_id(base_url, user_access_token, booking_catalog, target):
-    user_id = {"self": booking_catalog["owner_id"], "other": booking_catalog["other"]["user_id"],
-               "unknown": str(uuid4())}[target]
+def test_owner_cannot_filter_by_any_user_id(
+    base_url, user_access_token, available_room, stay_dates, second_user, target,
+):
+    payload = {"room_id": available_room["room"]["id"], **stay_dates}
+    created = create_booking(base_url, user_access_token, payload, uuid4().hex)
+    assert created.status_code == 201, created.text
+    booking = created.json()
+
+    user_id = {
+        "self": booking["user_id"],
+        "other": second_user["id"],
+        "unknown": str(uuid4()),
+    }[target]
     response = list_bookings(base_url, user_access_token, {"user_id": user_id})
     assert_api_error(response, status=403, code="FORBIDDEN")
+
     own = list_bookings(base_url, user_access_token)
     assert own.status_code == 200, own.text
-    assert own.json()["total"] == 4
-    assert {item["id"] for item in own.json()["items"]} == {item["id"] for item in booking_catalog["bookings"].values()}
+    page = own.json()
+    assert page["total"] == 1
+    assert [item["id"] for item in page["items"]] == [booking["id"]]
 
 
 @pytest.mark.parametrize("params", [

@@ -27,7 +27,6 @@ def move_booking_expiry_to_past(database_url, booking_id, user_id):
 
 
 def get_booking_payment_states(database_url, booking_id, user_id):
-    """Read all payment IDs/statuses for this test user's booking, including non-pending rows."""
     with psycopg.connect(
         database_url,
         connect_timeout=5,
@@ -51,7 +50,6 @@ def get_booking_payment_states(database_url, booking_id, user_id):
 
 
 def get_booking_and_payment_statuses(database_url, booking_id, user_id, payment_id):
-    """Read a committed booking/payment pair without triggering API reconciliation."""
     with psycopg.connect(
         database_url,
         connect_timeout=5,
@@ -73,7 +71,6 @@ def get_booking_and_payment_statuses(database_url, booking_id, user_id, payment_
 
 
 def get_booking_payment_history(database_url, booking_id, user_id, payment_id):
-    """Read transition histories only after verifying this payment belongs to this user's booking."""
     with psycopg.connect(
         database_url,
         connect_timeout=5,
@@ -117,7 +114,6 @@ def get_booking_payment_history(database_url, booking_id, user_id, payment_id):
 
 
 def move_confirmed_booking_checkout_to_today(database_url, booking_id, user_id):
-    """Move only this user's confirmed stay to UTC check-out day, preserving nights and price."""
     with psycopg.connect(
         database_url,
         connect_timeout=5,

@@ -10,7 +10,6 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def isolated_admin():
-    """Opt-in endpoint for a disposable API prepared with one active admin."""
     url = os.getenv("ISOLATED_ADMIN_API_URL")
     if not url:
         pytest.skip("Set ISOLATED_ADMIN_API_URL/EMAIL/PASSWORD for a disposable API with one active admin")

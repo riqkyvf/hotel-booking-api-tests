@@ -90,7 +90,6 @@ def test_booking_rejects_invalid_json_body(base_url, user_access_token, booking_
 
 
 def test_idempotency_key_is_scoped_to_user(base_url, user_access_token, second_user, booking_payload):
-    # Same room, disjoint dates: a conflict must not be caused by room occupancy.
     key = uuid4().hex
     first = create_booking(base_url, user_access_token, booking_payload, key)
     assert first.status_code == 201, first.text

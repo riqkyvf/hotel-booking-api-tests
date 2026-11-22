@@ -8,7 +8,6 @@ ROOM_TEMPLATE = {
     "price_per_night": "3000.00",
 }
 
-# Room entries are (price, state); only active rooms contribute to price.
 PRICE_HOTELS = {
     "mixed": {
         "name": "A Mixed",
@@ -77,7 +76,6 @@ PRICE_HOTELS = {
     },
 }
 
-# Expected keys are explicit so tests do not reproduce the server's filtering logic.
 HOTEL_PRICE_FILTER_CASES = (
     pytest.param({"min_price": "0"},
                  ("mixed", "midrange", "tied", "expensive", "boundary", "five_digits"),

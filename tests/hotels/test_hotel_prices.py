@@ -23,7 +23,6 @@ from schemas.hotel_response import HOTEL_PAGE_SCHEMA
 
 
 def create_priced_hotel(base_url, access_token, city, case):
-    """Create one hotel with rooms and verify that setup succeeded."""
     for _, state in case["rooms"]:
         assert state in {"active", "disabled", "archived"}, f"Unknown room state: {state!r}"
 

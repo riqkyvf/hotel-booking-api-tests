@@ -4,7 +4,6 @@ from api.payments import (
     create_payment,
     get_payment,
     simulate_payment_failure,
-    simulate_payment_success,
 )
 from data.payments import PAYMENT_DECLINE_REASON
 from tests.assertions import assert_api_error
@@ -23,30 +22,6 @@ def test_second_pending_payment_is_rejected(base_url, pending_payment, user_acce
     saved_booking = get_booking(base_url, user_access_token, booking["id"])
     assert saved_booking.status_code == 200, saved_booking.text
     assert saved_booking.json() == booking
-
-
-def test_repeated_payment_success_is_rejected(base_url, pending_payment, user_access_token):
-    booking = pending_payment["booking"]
-    payment = pending_payment["payment"]
-    succeeded = simulate_payment_success(base_url, user_access_token, payment["id"])
-    assert succeeded.status_code == 200, succeeded.text
-    paid = succeeded.json()
-    assert paid["id"] == payment["id"]
-    assert paid["status"] == "succeeded"
-    confirmed_response = get_booking(base_url, user_access_token, booking["id"])
-    assert confirmed_response.status_code == 200, confirmed_response.text
-    confirmed = confirmed_response.json()
-    assert confirmed["status"] == "confirmed"
-
-    response = simulate_payment_success(base_url, user_access_token, payment["id"])
-    assert_api_error(response, status=409, code="BOOKING_NOT_PAYABLE")
-
-    saved_payment = get_payment(base_url, user_access_token, payment["id"])
-    assert saved_payment.status_code == 200, saved_payment.text
-    assert saved_payment.json() == paid
-    saved_booking = get_booking(base_url, user_access_token, booking["id"])
-    assert saved_booking.status_code == 200, saved_booking.text
-    assert saved_booking.json() == confirmed
 
 
 def test_repeated_payment_failure_preserves_original_reason(

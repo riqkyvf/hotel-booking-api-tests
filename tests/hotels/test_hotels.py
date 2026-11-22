@@ -218,7 +218,6 @@ def test_hotels_sorting(base_url, hotel_catalog, sort, expected_names):
         assert hotel["name"] == expected_hotel["name"]
         assert hotel["rating"] == expected_hotel["rating"]
 
-    # The two Alpha hotels have equal names and ratings in all sort variants.
     expected_alpha_ids = sorted([hotels["alpha_one"]["id"], hotels["alpha_two"]["id"]])
     actual_alpha_ids = [
         hotel["id"] for hotel in body["items"] if hotel["name"] == "Alpha Hotel"

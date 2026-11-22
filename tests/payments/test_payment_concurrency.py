@@ -56,7 +56,6 @@ def test_only_one_concurrent_payment_is_created(
     assert saved_booking.status_code == 200, saved_booking.text
     assert saved_booking.json() == booking
 
-    # The API has no payment list: count all rows, not only the known successful ID.
     assert get_booking_payment_states(database_url, booking["id"], booking["user_id"]) == [
         {"id": payment["id"], "status": "pending"},
     ]
@@ -109,7 +108,6 @@ def test_concurrent_payment_success_is_applied_only_once(
     assert get_booking_payment_states(database_url, booking["id"], actor_id) == [
         {"id": payment["id"], "status": "succeeded"},
     ]
-    # Check full histories: no duplicate success/confirmation or extra intermediate transitions.
     assert get_booking_payment_history(database_url, booking["id"], actor_id, payment["id"]) == {
         "booking": [*initial_history["booking"],
                     {"from_status": "pending_payment", "to_status": "confirmed", "actor_id": actor_id}],

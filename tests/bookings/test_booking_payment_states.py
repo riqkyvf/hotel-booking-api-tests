@@ -8,7 +8,6 @@ from tests.assertions import assert_api_error
 
 @pytest.fixture
 def non_payable_booking(base_url, pending_payment, user_access_token, request):
-    """Return current booking/payment snapshots after an API-driven terminal transition."""
     booking = pending_payment["booking"]
     payment = pending_payment["payment"]
     if request.param == "confirmed":

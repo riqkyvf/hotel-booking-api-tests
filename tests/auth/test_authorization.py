@@ -31,7 +31,6 @@ def test_protected_operations_reject_invalid_credentials(
     token = {"missing": None, "empty": "", "malformed": "invalid-token"}.get(token_kind)
     if token_kind == "invalid_signature":
         header, payload, signature = user_access_token.split(".")
-        # Change the first signature byte, keeping valid base64url and original claims.
         signature_bytes = bytearray(base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4)))
         signature_bytes[0] ^= 1
         damaged = base64.urlsafe_b64encode(signature_bytes).rstrip(b"=").decode()
@@ -49,6 +48,5 @@ def test_protected_operations_reject_invalid_credentials(
     if token:
         assert token not in response.text
 
-    # Rejection must not disable the valid user's access.
     valid = get_profile(base_url, user_access_token)
     assert valid.status_code == 200, valid.text

@@ -83,8 +83,6 @@ def test_user_can_create_and_read_booking(
         )
         assert booking["currency"] == "RUB"
         expires_at = datetime.fromisoformat(booking["expires_at"])
-        # This stand's API/DB and test runner must have clocks within five seconds.
-        # This bounds the ordinary request; it does not isolate decision time under locks.
         clock_tolerance = timedelta(seconds=5)
         earliest_expiry = request_started + timedelta(minutes=30) - clock_tolerance
         latest_expiry = response_received + timedelta(minutes=30) + clock_tolerance

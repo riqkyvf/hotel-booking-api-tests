@@ -12,11 +12,9 @@ BOOKING_NIGHTS = 3
 BOOKING_GUESTS = 2
 BOOKING_CHECK_IN_OFFSET_DAYS = 2
 
-# This scenario has its own dates, independent of the default booking stay.
 OVERLAP_NIGHTS = 3
 OVERLAP_CHECK_IN_OFFSET_DAYS = 2
 
-# Offsets in days from the first booking's check-in.
 OVERLAPPING_STAYS = (
     pytest.param(0, OVERLAP_NIGHTS, id="same_dates", marks=pytest.mark.smoke),
     pytest.param(-1, 1, id="overlap_left"),

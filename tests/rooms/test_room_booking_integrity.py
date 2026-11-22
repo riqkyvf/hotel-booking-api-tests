@@ -78,7 +78,6 @@ def test_room_price_change_affects_only_new_bookings(
     assert saved_room.status_code == 200, saved_room.text
     assert saved_room.json() == updated_room
 
-    # Existing booking and payment retain their original monetary snapshots.
     saved_booking = get_booking(base_url, user_access_token, booking["id"])
     assert saved_booking.status_code == 200, saved_booking.text
     assert saved_booking.json() == booking
@@ -86,7 +85,6 @@ def test_room_price_change_affects_only_new_bookings(
     assert saved_payment.status_code == 200, saved_payment.text
     assert saved_payment.json() == payment
 
-    # A separate, non-overlapping stay must use the newly saved room price.
     nights = (date.fromisoformat(booking["check_out"]) - date.fromisoformat(booking["check_in"])).days
     check_in = date.fromisoformat(booking["check_out"]) + timedelta(days=1)
     new_payload = {
